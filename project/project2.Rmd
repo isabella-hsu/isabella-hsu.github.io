@@ -1,0 +1,369 @@
+---
+title: "Classifying and Predicting District Characteristics from STAAR Outcomes"
+author: "Isabella Hsu"
+date: "5/11/2022"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction
+
+The dataset I have chosen to analyze is compiled from two datasets from the Texas Education Agency (TEA). The first TEA dataset contains districts as its subjects, and it gives various characteristics of that district. For instance, the dataset contains the district TEA code, which describes what kind of district they are (major urban to rural); NCES code, which describes their locale; and whether or not the district is a charter school district. The second TEA dataset describes the percentage of different third grader demographics (e.g. female students, economically disadvantaged students, at-risk students) that passed the third-grade STAAR (separated by math and reading) in the different districts. 
+
+I found this data interesting because I'm quite fascinated by educational equity. As such, I wanted to determine what educational disparities exist between different types of districts. For instance, if performance in these different STAAR results can accurately classify the districts, this likely means there is some sort of disparity between the different types of districts. Because districts contain so many different schools, it is hard to predict how the clusters may appear. However, I expect that rural and independent town districts may show poorer performance in "all reading" and "all math" scores as these are typically more economically disadvantaged/smaller districts.
+
+To compile the two datsets into a single dataset, I first kept the variables I wanted to analyze in each of the datasets. I then replaced all blanks and .s (both which represented NA in the original dataset) with actual NA variables in the second dataset. I then removed all rows with NA in the second dataset. I then conducted a left join with the second dataset being the "left" dataset. This resulted in staarjoin.csv, which I have uploaded below.
+
+If you are on a browser and want to view the specifics of the data cleaning process, please see this link: [Cleaning Process](file:///Users/isabellahsu/Downloads/College/Spring%202022/SDS%20322E/SDS-322-E-Project-2---Cleaning.html) 
+
+Sources: 
+
+* https://rptsvr1.tea.texas.gov/perfreport/tapr/2020/download.html 
+* https://tea.texas.gov/reports-and-data/school-data/district-type-data-search/district-type-2019-20
+
+
+## Exploratory Data Analysis
+
+We will begin by examining our variables and some of the relationships between them. 
+
+```{r, message = FALSE}
+#loading necessary libraries
+library(tidyverse)
+library(tibble)
+library(dplyr)
+library(ggplot2)
+library(plotROC)
+library(caret)
+library(ade4)
+library(factoextra)
+library(ggrepel)
+library(cluster)
+library(psych)
+```
+
+
+```{r}
+#uploading relevant datasets
+staar <- read.csv("staarjoin.csv")
+```
+
+### Correlation Matrix
+
+```{r}
+#correcting the character types (factoring character variables)
+staar <-
+  staar %>%
+  select(-X) %>%
+  mutate(District = as.factor(District),
+         TEA = as.factor(TEA),
+         NCES = as.factor(NCES),
+         Charter = as.factor(Charter))
+```
+
+```{r}
+#scaling the variables 
+staar_scale <-
+  staar %>%
+  select_if(is.numeric) %>%
+  scale %>% 
+  as.data.frame
+
+#creating correlation plot for the numeric variables
+pairs.panels(staar_scale, 
+             method = "pearson", 
+             hist.col = "blue", 
+             smooth = FALSE, density = FALSE, ellipses = FALSE)
+
+```
+
+*From the above correlation matrix, we find that the strongest relationship occurs between districts' percentage of all students that meet the third-grade math STAAR and percentage of male students that meet the third-grade math STAAR, which has a Pearson coefficient of 0.95. Similarly, the next strongest relationship is between the percentage of all students that meet the third-grade reading STAAR and the percentage of male students that meet the third-grade reading STAAR with a pearson coefficient of 0.93. This makes sense as male test-takers make up the majority or near-majority of STAAR test takers in each of the categories. Therefore, higher performance among male students will strongly impact higher performance among all STAAR students. However, to find perhaps some less obvious conclusions, we can exclude the "All" category in the correlation matrix by ignoring any relationships with a variable and an "All.Reading" or "All.Math" score. From this, we find that the strongest correlations are then between male reading STAAR passing rates and male math STAAR passing rates. Therefore, there is an observed relationship between district passing rates in different subjects of the third-grade STAAR exam for male students. Another strong correlation (after excluding the "All" category) is the relationship between third-grade STAAR math passing rates among female students and among economically disadvantaged students, as this has a Pearson score of 0.78. This may speak toward certain districts having better resources to teach students from various different backgrounds, though one would not be able to determine this from just the correlations.*
+
+*In addition, the weakest correlations exist between the percentage of special ed students that pass the third-grade math STAAR and the percentage of at-risk students that pass the third-grade reading STAAR, as this has a Pearson score of 0.29. This may disprove the notion that these relationships are due to resources for different backgrounds, or it may add the nuance that these effects are seen only within a single subject. However, as before, we are unable to say with certainty what the cause of these relationships are from the correlation matrices alone.*
+
+## Clustering
+
+We will then cluster our variables. To do this, we first need to determine the number of clusters based on the silhouette width. We first find the Gower distance between the observations.
+
+```{r}
+#new dataset with everything except ID variables
+staar2 <-
+  staar %>%
+  select(-c(District,Name))
+
+#generating gower dissimilarity matrix on data
+staar_gower <- 
+  daisy(staar2, metric = "gower") %>%
+  as.matrix
+```
+
+
+```{r}
+#saving the clean version for my reference - applies it to dataset
+staar_gower_clean <- staar_gower %>%
+  as.data.frame %>%
+  #adding district numbers to own column/distance in another column
+  rownames_to_column("District1") %>%
+  pivot_longer(-1, names_to = "District2", values_to = "distance") %>%
+  # removing pairs where the same
+  filter(District1 != District2) %>%
+  # only keeping the distinct pairs
+  distinct(distance, .keep_all = TRUE) 
+
+```
+
+
+Then, we can apply PAM to staar_gower to find the number of clusters to use.
+```{r}
+#finding ideal number of clusters
+fviz_nbclust(staar_gower, pam, method = "silhouette")
+```
+
+*We find that the ideal number of clusters to use in our PAM clustering is 2.*
+
+From this, we can now apply pam to staar_gower using the ideal number of clusters found (2). 
+```{r}
+# using PAM on dissimilarity object
+pam_results1 <- pam(staar_gower, k = 2, diss = TRUE)
+
+#saving cluster in dataset - saving as staar_pam
+staar_pam <- staar %>%
+  mutate(cluster = as.factor(pam_results1$clustering))
+
+head(staar_pam)
+```
+### Visualizing Clusters
+```{r}
+#visualizing the clusters 
+pam_results2 <- pam(staar_gower, k = 2)
+fviz_cluster(pam_results2, data = staar) 
+```
+
+*From this we find that the clusters seem to be divided such that cluster 1 is lower on both the first and second dimension than cluster 2. The clusters explain 70.5% of the variation on the two dimensions.*
+
+### Interpreting Clusters
+
+We can then interpret what each of these clusters represent by analyzing the clusters in terms of the original variables/observations. (The interpretation is included in a single paragraph below all of code.)
+
+```{r}
+#getting important characteristics of pam data
+pam_results1
+```
+
+The medoids are at ID 174 and 398, so we can examine what these are below.
+
+```{r}
+#finding center of cluster 1
+slice(staar, 174)
+#finding center of cluster 2
+slice(staar, 398)
+```
+
+```{r}
+#checking average silhouette width
+pam_results1$silinfo$avg.width
+```
+
+#### Statistics
+
+```{r}
+# Statistics for numeric variables: mean
+staar_pam %>%
+  group_by(cluster) %>%
+  summarize_if(is.numeric, mean, na.rm = T)
+```
+
+```{r}
+# Statistics for categorical variables: proportions in each cluster (TEA)
+prop.table(table(staar_pam$cluster, staar_pam$TEA), margin = 1)
+
+# Statistics for categorical variables: proportions in each cluster (NCES)
+prop.table(table(staar_pam$cluster, staar_pam$NCES), margin = 1)
+
+# Statistics for categorical variables: proportions in each cluster (Charter)
+prop.table(table(staar_pam$cluster, staar_pam$Charter), margin = 1)
+
+```
+
+
+*From the above information, we find that the center of cluster 1 is district number 174, which is Lake Dallas ISD, and the center of cluster 2 is district 298, or Giddings ISD. Please note the average silhouette width for this clustering is 0.153, which means no substantial structure was found. Therefore, while we can continue to analyze these cluster, we must note the clusters are not particularly strong.*
+
+*Cluster 1 has a higher mean rate of third graders passing for all the demographics and for both the reading and math STAAR scores than Cluster 2. For instance, Cluster 1 had an average All.Math score of 53.03, while Cluster 2 had an average All.Math score of 37.82. However, when it comes down to district characteristics, it seems that the distinction is not quite as clear. Cluster 1 is made up of more districts with the TEA classification A, B, C, D, F, and I than Cluster 2 (with Cluster 2 therefore having a greater proportion of E, G, and H). This is important to note because Clusters E, G, and H represent the "independent town," "non-metropolitan - stable," and "rural" distinctions (which I hypothesized may have lower scores all around). Examining the NCES data, this is echoed in that Cluster 2 has a much greater proportion of districts with code 33, 41, and 43 (town - remote, rural - fringe, and rural - remote), again the smaller and likely more economically disadvantaged districts. The proportion of Charter schools in Cluster 1 is relatively similar to the proportion in Cluster 2 (0.08 yes and 0.91 no), however.* 
+
+## Dimensionality Reduction
+### Breaking Down the Principal Components
+
+```{r}
+# PCA on dataset (all variables)
+pca_staar <- staar_scale %>%
+  prcomp()
+
+#checking on the components
+names(pca_staar)
+```
+
+### Creating a Scree Plot
+```{r}
+#saving the percent variance explained by stdev
+percent <- 100 * (pca_staar$sdev^2 / sum(pca_staar$sdev^2))
+
+#saving for each pc
+var_explained <- data.frame(percent, PC = 1:length(percent))
+
+# visualizing the explained variance
+ggplot(var_explained, aes(x = PC, y = percent)) + 
+  geom_col() + 
+  geom_text(aes(label = round(percent, 2)), size = 4, vjust = -0.5) + 
+  ylim(0, 70)
+
+```
+
+*We aim to explain about 80% of the variability. From the Scree plot, we find that this is achieved when using the first three principal components (explaining 64.18%, 10.28%, and 8.98% of the variability respectively.)*
+
+### Visualizing Observations with Two PCs
+
+```{r, warning = FALSE}
+#finding how the individual points and the variables fall according to each dimension
+fviz_pca_biplot(pca_staar, col.ind = staar$TEA, col.var = "black", repel = TRUE)
+
+```
+
+*From this plot, it is evident that all the variables negatively contribute to Dimension 1. Special Math and Special Reading contribute negatively to Dimension 2, while everything else contributes positively. Combined, the two dimensions explain 74.6% of the variability in the observations.*
+
+### Interpreting each PC Retained
+
+As noted above, I kept the first three PCs to achieve ~80% of variability explained. Here is some statistics on those first three PCs (interpretation at end of section):
+
+```{r}
+# saving rotation matrix 
+staar_rotation_data <- data.frame(
+  pca_staar$rotation, 
+  variable = row.names(pca_staar$rotation))
+
+#examining rotation matrix for retained PCs
+staar_rotation_data %>%
+  select(c(PC1, PC2, PC3)) 
+```
+
+```{r}
+#visualizing the contributions of different variables to each PC
+fviz_contrib(pca_staar, choice = "var", axes = 1, top = 5) # on PC1
+fviz_contrib(pca_staar, choice = "var", axes = 2, top = 5) # on PC2
+fviz_contrib(pca_staar, choice = "var", axes = 3, top = 5) # on PC3
+```
+
+*For PC1, we find that the largest contributors are All.Math, All.Reading, Male.Math, Male.Reading, and Female.Math. Each of these contributes negatively to PC1 however. In fact, all the variables negatively contribute to PC1. Therefore, a higher PC1 score represents worse scores across the board, which are largely driven by the "all," "male," and "female" populations.*
+
+*For PC2, we find that the largest contributors are Special.Reading and Special.Math by a large margin (~90% combined) then Female.Reading, All.Reading, and Female.Math by a smaller margin. In fact, Special.Reading and Special.Math are the only two to contribute negatively to PC2, while the rest of the variables contribute positively. Therefore, a higher PC2 score represents better overall scores but worse scores for special education populations.*
+
+*For PC3, we find that the largest contributors are Econ_Dis.Math, At_Risk.Math, Female.Reading, All.Reading, and Econ_Dis.Reading. Econ_Dis.Math and At_Risk.Math are negative contributors, while Female.Reading, All.Reading, and Econ_Dis.Reading are positive contributors. In fact, it seems that all the math scores negatively contribute to PC3 while all the reading scores positively contribute. Therefore, a higher PC3 score represents better reading but worse math score.*
+
+## Classification and Cross-Validation
+
+We then want to develop a model to classify our data. Our dataset contains one binary variable, Charter, so we will use the numeric variables to identify Charter. We would not use TEA or NCES because these contain a charter category.
+
+### Applying a Logistic Regression
+
+```{r}
+#making Charter 0/1 for simplicity
+staar <- staar %>%
+  mutate(Charter = ifelse(Charter == "N", 0, 1))
+
+#creating logistic regression 
+staar_glm <- glm(Charter ~ All.Math + All.Reading + Econ_Dis.Math + Econ_Dis.Reading + Female.Math + Female.Reading + Male.Math + Male.Reading + At_Risk.Math + At_Risk.Reading + Special.Math + Special.Reading, data = staar, family = "binomial")
+
+summary(staar_glm)
+
+```
+
+### Examining Performance
+
+```{r}
+# Calculate a predicted probability
+log_staar <- staar %>% 
+  mutate(score = predict(staar_glm, type = "response"),
+         predicted = ifelse(score < 0.5, 0, 1)) 
+head(log_staar)
+
+```
+
+We can look at the confusion matrix to determine the false positive rate (FPR) and false negative rate (FNR).
+
+```{r}
+# Confusion matrix: compare true to predicted condition
+table(log_staar$Charter, log_staar$predicted) %>% addmargins
+```
+
+*From this, we find that there were two false positives and 52 false negatives. This means that the false positive rate is 2/612 and the false negative rate is 52/58.*
+
+
+```{r}
+# ROC curve
+ROC <- ggplot(log_staar) + 
+  geom_roc(aes(d = Charter, m = score), n.cuts = 0)
+ROC
+```
+
+```{r}
+# Calculate the area under the curve
+calc_auc(ROC)
+```
+
+*The AUC is 0.813, which means the training model is "good."*
+
+### Cross Validation with 10-fold CV
+
+We must now evaluate how this model performs on "unseen" data, however. Therefore, we will apply 10-fold cross validation wherein we train the data on a portion of the data and test for 10 folds, then average the performance across the 10 folds.
+
+Here we will set the folds:
+```{r}
+# setting 10 folds 
+k = 10 
+
+# randomize
+set.seed(1028)
+data <- staar[sample(nrow(staar)), ] 
+
+# creating the diff folds
+folds <- cut(seq(1:nrow(data)), breaks = k, labels = FALSE)
+```
+
+
+We will then run a for loop to find the AUC for each of the folds:
+```{r}
+# for loop for each set
+diags_k <- NULL
+
+for(i in 1:k){
+  # training and testing set
+  train <- data[folds != i, ] #not fold i
+  test <- data[folds == i, ]  #fold i
+  
+  # training model
+  fit <- glm(Charter ~ All.Math + All.Reading + Econ_Dis.Math + Econ_Dis.Reading + Female.Math
+             + Female.Reading + Male.Math + Male.Reading + At_Risk.Math + At_Risk.Reading +
+               Special.Math + Special.Reading, data = staar, family = "binomial")
+  
+  # putting model on test set
+  df <- data.frame(
+    probability = (ifelse(predict(staar_glm, newdata = test, type = "response") < 0.5, 0, 1)),
+    outcome = test$Charter)
+  
+  # ROC for test
+  ROC <- ggplot(df) + 
+    geom_roc(aes(d = outcome, m = probability))
+
+  # auc for each fold
+  diags_k[i] <- calc_auc(ROC)$AUC
+}
+```
+
+
+We can then find the average performance for all the folds.
+```{r}
+# avg performance across folds
+mean(diags_k)
+```
+
+*From this, we find that the AUC falls from 0.81 (with the logistic regression alone) to 0.55 (when cross-validated). Therefore, the performance is now considered "bad," which indicates that our model was likely overfit before.*
+

@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Isabella Hsu" />
+    
+    <link rel="shortcut icon" type="image/x-icon" href="/img/favicon.ico">
+    <title>Classifying and Predicting District Characteristics from STAAR Outcomes</title>
+    <meta name="generator" content="Hugo 0.98.0" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="/css/main.css" />
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,400,200bold,400old" />
+    
+    <!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+			<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+		<![endif]-->
+
+    
+  </head>
+
+  <body>
+    <div id="wrap">
+      
+      <nav class="navbar navbar-default">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/"><i class="fa fa-home"></i></a>
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div class="navbar-collapse collapse" id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+      
+        
+        <li><a href="/post/">BLOG</a></li>
+        
+        <li><a href="/projects/">PROJECTS</a></li>
+        
+        <li><a href="/resume/">RESUME</a></li>
+        
+      
+      </ul>
+    </div>
+  </div>
+</nav>
+
+      <div class="container">
+        <div class="blog-post">
+          <h3>
+            <strong><a href="/project/project2/">Classifying and Predicting District Characteristics from STAAR Outcomes</a></strong>
+          </h3>
+        </div>
+ 
+<div class="blog-title">
+          <h4>
+         January 1, 0001 
+            &nbsp;&nbsp;
+            
+          </h4>
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-body">
+            <div class="blogpost">
+              
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>The dataset I have chosen to analyze is compiled from two datasets from the Texas Education Agency (TEA). The first TEA dataset contains districts as its subjects, and it gives various characteristics of that district. For instance, the dataset contains the district TEA code, which describes what kind of district they are (major urban to rural); NCES code, which describes their locale; and whether or not the district is a charter school district. The second TEA dataset describes the percentage of different third grader demographics (e.g. female students, economically disadvantaged students, at-risk students) that passed the third-grade STAAR (separated by math and reading) in the different districts.</p>
+<p>I found this data interesting because I’m quite fascinated by educational equity. As such, I wanted to determine what educational disparities exist between different types of districts. For instance, if performance in these different STAAR results can accurately classify the districts, this likely means there is some sort of disparity between the different types of districts. Because districts contain so many different schools, it is hard to predict how the clusters may appear. However, I expect that rural and independent town districts may show poorer performance in “all reading” and “all math” scores as these are typically more economically disadvantaged/smaller districts.</p>
+<p>To compile the two datsets into a single dataset, I first kept the variables I wanted to analyze in each of the datasets. I then replaced all blanks and .s (both which represented NA in the original dataset) with actual NA variables in the second dataset. I then removed all rows with NA in the second dataset. I then conducted a left join with the second dataset being the “left” dataset. This resulted in staarjoin.csv, which I have uploaded below.</p>
+<p>If you are on a browser and want to view the specifics of the data cleaning process, please see this link: <a href="file:///Users/isabellahsu/Downloads/College/Spring%202022/SDS%20322E/SDS-322-E-Project-2---Cleaning.html">Cleaning Process</a></p>
+<p>Sources:</p>
+<ul>
+<li><a href="https://rptsvr1.tea.texas.gov/perfreport/tapr/2020/download.html" class="uri">https://rptsvr1.tea.texas.gov/perfreport/tapr/2020/download.html</a></li>
+<li><a href="https://tea.texas.gov/reports-and-data/school-data/district-type-data-search/district-type-2019-20" class="uri">https://tea.texas.gov/reports-and-data/school-data/district-type-data-search/district-type-2019-20</a></li>
+</ul>
+</div>
+<div id="exploratory-data-analysis" class="section level2">
+<h2>Exploratory Data Analysis</h2>
+<p>We will begin by examining our variables and some of the relationships between them.</p>
+<pre class="r"><code>#loading necessary libraries
+library(tidyverse)
+library(tibble)
+library(dplyr)
+library(ggplot2)
+library(plotROC)
+library(caret)
+library(ade4)
+library(factoextra)
+library(ggrepel)
+library(cluster)
+library(psych)</code></pre>
+<pre class="r"><code>#uploading relevant datasets
+staar &lt;- read.csv(&quot;staarjoin.csv&quot;)</code></pre>
+<div id="correlation-matrix" class="section level3">
+<h3>Correlation Matrix</h3>
+<pre class="r"><code>#correcting the character types (factoring character variables)
+staar &lt;-
+  staar %&gt;%
+  select(-X) %&gt;%
+  mutate(District = as.factor(District),
+         TEA = as.factor(TEA),
+         NCES = as.factor(NCES),
+         Charter = as.factor(Charter))</code></pre>
+<pre class="r"><code>#scaling the variables 
+staar_scale &lt;-
+  staar %&gt;%
+  select_if(is.numeric) %&gt;%
+  scale %&gt;% 
+  as.data.frame
+
+#creating correlation plot for the numeric variables
+pairs.panels(staar_scale, 
+             method = &quot;pearson&quot;, 
+             hist.col = &quot;blue&quot;, 
+             smooth = FALSE, density = FALSE, ellipses = FALSE)</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<p><em>From the above correlation matrix, we find that the strongest relationship occurs between districts’ percentage of all students that meet the third-grade math STAAR and percentage of male students that meet the third-grade math STAAR, which has a Pearson coefficient of 0.95. Similarly, the next strongest relationship is between the percentage of all students that meet the third-grade reading STAAR and the percentage of male students that meet the third-grade reading STAAR with a pearson coefficient of 0.93. This makes sense as male test-takers make up the majority or near-majority of STAAR test takers in each of the categories. Therefore, higher performance among male students will strongly impact higher performance among all STAAR students. However, to find perhaps some less obvious conclusions, we can exclude the “All” category in the correlation matrix by ignoring any relationships with a variable and an “All.Reading” or “All.Math” score. From this, we find that the strongest correlations are then between male reading STAAR passing rates and male math STAAR passing rates. Therefore, there is an observed relationship between district passing rates in different subjects of the third-grade STAAR exam for male students. Another strong correlation (after excluding the “All” category) is the relationship between third-grade STAAR math passing rates among female students and among economically disadvantaged students, as this has a Pearson score of 0.78. This may speak toward certain districts having better resources to teach students from various different backgrounds, though one would not be able to determine this from just the correlations.</em></p>
+<p><em>In addition, the weakest correlations exist between the percentage of special ed students that pass the third-grade math STAAR and the percentage of at-risk students that pass the third-grade reading STAAR, as this has a Pearson score of 0.29. This may disprove the notion that these relationships are due to resources for different backgrounds, or it may add the nuance that these effects are seen only within a single subject. However, as before, we are unable to say with certainty what the cause of these relationships are from the correlation matrices alone.</em></p>
+</div>
+</div>
+<div id="clustering" class="section level2">
+<h2>Clustering</h2>
+<p>We will then cluster our variables. To do this, we first need to determine the number of clusters based on the silhouette width. We first find the Gower distance between the observations.</p>
+<pre class="r"><code>#new dataset with everything except ID variables
+staar2 &lt;-
+  staar %&gt;%
+  select(-c(District,Name))
+
+#generating gower dissimilarity matrix on data
+staar_gower &lt;- 
+  daisy(staar2, metric = &quot;gower&quot;) %&gt;%
+  as.matrix</code></pre>
+<pre class="r"><code>#saving the clean version for my reference - applies it to dataset
+staar_gower_clean &lt;- staar_gower %&gt;%
+  as.data.frame %&gt;%
+  #adding district numbers to own column/distance in another column
+  rownames_to_column(&quot;District1&quot;) %&gt;%
+  pivot_longer(-1, names_to = &quot;District2&quot;, values_to = &quot;distance&quot;) %&gt;%
+  # removing pairs where the same
+  filter(District1 != District2) %&gt;%
+  # only keeping the distinct pairs
+  distinct(distance, .keep_all = TRUE) </code></pre>
+<p>Then, we can apply PAM to staar_gower to find the number of clusters to use.</p>
+<pre class="r"><code>#finding ideal number of clusters
+fviz_nbclust(staar_gower, pam, method = &quot;silhouette&quot;)</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p><em>We find that the ideal number of clusters to use in our PAM clustering is 2.</em></p>
+<p>From this, we can now apply pam to staar_gower using the ideal number of clusters found (2).</p>
+<pre class="r"><code># using PAM on dissimilarity object
+pam_results1 &lt;- pam(staar_gower, k = 2, diss = TRUE)
+
+#saving cluster in dataset - saving as staar_pam
+staar_pam &lt;- staar %&gt;%
+  mutate(cluster = as.factor(pam_results1$clustering))
+
+head(staar_pam)</code></pre>
+<pre><code>##   District          Name TEA NCES Charter All.Math All.Reading Econ_Dis.Math
+## 1     1902    CAYUGA ISD   H   43       N       84          61            68
+## 2     1903   ELKHART ISD   G   42       N       42          35            21
+## 3     1904 FRANKSTON ISD   H   42       N       49          43            44
+## 4     1907 PALESTINE ISD   E   32       N       44          45            39
+## 5     1908  WESTWOOD ISD   G   32       N       24          31            24
+## 6     2901   ANDREWS ISD   D   32       N       50          45            38
+##   Econ_Dis.Reading Female.Math Female.Reading Male.Math Male.Reading
+## 1               59          86             76        83           48
+## 2               21          43             41        40           30
+## 3               38          43             48        54           39
+## 4               41          36             43        51           48
+## 5               30          26             33        22           27
+## 6               41          46             50        54           40
+##   At_Risk.Math At_Risk.Reading Special.Math Special.Reading cluster
+## 1           69              38           29              14       1
+## 2           35              35           25              25       2
+## 3           28               4           29              29       1
+## 4           39              39           31              31       1
+## 5            8              11           18              27       2
+## 6           19              37           15              15       1</code></pre>
+<div id="visualizing-clusters" class="section level3">
+<h3>Visualizing Clusters</h3>
+<pre class="r"><code>#visualizing the clusters 
+pam_results2 &lt;- pam(staar_gower, k = 2)
+fviz_cluster(pam_results2, data = staar) </code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p><em>From this we find that the clusters seem to be divided such that cluster 1 is lower on both the first and second dimension than cluster 2. The clusters explain 70.5% of the variation on the two dimensions.</em></p>
+</div>
+<div id="interpreting-clusters" class="section level3">
+<h3>Interpreting Clusters</h3>
+<p>We can then interpret what each of these clusters represent by analyzing the clusters in terms of the original variables/observations. (The interpretation is included in a single paragraph below all of code.)</p>
+<pre class="r"><code>#getting important characteristics of pam data
+pam_results1</code></pre>
+<pre><code>## Medoids:
+##      ID         
+## [1,] &quot;174&quot; &quot;174&quot;
+## [2,] &quot;398&quot; &quot;398&quot;
+## Clustering vector:
+##   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20 
+##   1   2   1   1   2   1   2   2   2   2   2   2   2   2   2   2   1   2   2   2 
+##  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36  37  38  39  40 
+##   2   2   2   2   2   2   2   1   1   1   1   2   2   2   2   2   2   2   1   1 
+##  41  42  43  44  45  46  47  48  49  50  51  52  53  54  55  56  57  58  59  60 
+##   1   1   1   2   2   2   2   2   2   1   2   2   1   2   1   1   2   1   2   2 
+##  61  62  63  64  65  66  67  68  69  70  71  72  73  74  75  76  77  78  79  80 
+##   2   1   2   1   2   1   1   1   1   1   1   1   1   1   1   1   2   2   2   1 
+##  81  82  83  84  85  86  87  88  89  90  91  92  93  94  95  96  97  98  99 100 
+##   2   2   1   2   1   1   1   1   2   1   1   2   1   2   1   1   2   2   2   1 
+## 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 
+##   2   1   1   1   1   2   2   2   1   1   1   2   1   2   1   1   1   1   1   1 
+## 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 
+##   1   1   1   2   2   2   1   1   2   2   1   1   2   1   1   1   2   2   1   2 
+## 141 142 143 144 145 146 147 148 149 150 151 152 153 154 155 156 157 158 159 160 
+##   1   2   2   2   1   2   2   1   1   1   1   2   1   1   1   2   1   1   1   1 
+## 161 162 163 164 165 166 167 168 169 170 171 172 173 174 175 176 177 178 179 180 
+##   1   2   1   2   1   1   1   2   1   1   1   1   1   1   1   2   2   2   1   1 
+## 181 182 183 184 185 186 187 188 189 190 191 192 193 194 195 196 197 198 199 200 
+##   2   2   1   2   2   2   2   1   2   1   1   1   1   1   1   1   1   2   1   1 
+## 201 202 203 204 205 206 207 208 209 210 211 212 213 214 215 216 217 218 219 220 
+##   1   1   1   2   1   2   2   2   2   2   2   2   1   1   1   1   2   2   2   2 
+## 221 222 223 224 225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 
+##   2   2   2   2   1   1   2   1   1   1   1   1   2   2   2   2   1   1   2   1 
+## 241 242 243 244 245 246 247 248 249 250 251 252 253 254 255 256 257 258 259 260 
+##   1   1   2   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1 
+## 261 262 263 264 265 266 267 268 269 270 271 272 273 274 275 276 277 278 279 280 
+##   1   2   2   1   1   1   1   1   2   1   1   2   2   1   1   1   1   2   1   2 
+## 281 282 283 284 285 286 287 288 289 290 291 292 293 294 295 296 297 298 299 300 
+##   1   1   1   2   1   1   1   1   1   1   1   1   1   1   2   1   1   1   2   1 
+## 301 302 303 304 305 306 307 308 309 310 311 312 313 314 315 316 317 318 319 320 
+##   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   2   1   1   2   1 
+## 321 322 323 324 325 326 327 328 329 330 331 332 333 334 335 336 337 338 339 340 
+##   1   1   1   2   1   1   2   2   2   1   2   2   2   1   2   2   1   1   2   2 
+## 341 342 343 344 345 346 347 348 349 350 351 352 353 354 355 356 357 358 359 360 
+##   2   2   2   1   2   2   2   2   2   2   2   2   1   1   1   2   1   2   1   2 
+## 361 362 363 364 365 366 367 368 369 370 371 372 373 374 375 376 377 378 379 380 
+##   1   1   2   1   1   2   2   2   2   2   2   2   2   2   1   1   1   1   1   2 
+## 381 382 383 384 385 386 387 388 389 390 391 392 393 394 395 396 397 398 399 400 
+##   1   1   1   1   1   2   1   1   2   2   2   2   2   2   1   1   1   2   2   2 
+## 401 402 403 404 405 406 407 408 409 410 411 412 413 414 415 416 417 418 419 420 
+##   1   1   2   2   2   2   2   1   2   2   1   2   2   2   1   1   2   1   2   2 
+## 421 422 423 424 425 426 427 428 429 430 431 432 433 434 435 436 437 438 439 440 
+##   1   1   2   2   2   2   1   2   2   1   1   1   1   2   2   2   2   2   1   2 
+## 441 442 443 444 445 446 447 448 449 450 451 452 453 454 455 456 457 458 459 460 
+##   1   1   1   2   2   2   2   2   1   2   2   2   2   2   1   1   2   2   2   1 
+## 461 462 463 464 465 466 467 468 469 470 471 472 473 474 475 476 477 478 479 480 
+##   2   1   2   1   2   1   2   2   2   1   1   2   1   2   2   1   1   1   2   1 
+## 481 482 483 484 485 486 487 488 489 490 491 492 493 494 495 496 497 498 499 500 
+##   1   1   1   2   2   1   2   1   2   2   2   1   1   1   1   1   1   2   1   2 
+## 501 502 503 504 505 506 507 508 509 510 511 512 513 514 515 516 517 518 519 520 
+##   2   2   2   2   1   1   1   2   1   2   1   1   2   1   2   1   1   2   1   1 
+## 521 522 523 524 525 526 527 528 529 530 531 532 533 534 535 536 537 538 539 540 
+##   2   2   2   1   2   2   1   1   1   2   1   2   1   2   2   1   1   2   2   1 
+## 541 542 543 544 545 546 547 548 549 550 551 552 553 554 555 556 557 558 559 560 
+##   2   1   1   2   2   1   2   1   1   1   1   2   2   1   2   2   1   1   2   1 
+## 561 562 563 564 565 566 567 568 569 570 571 572 573 574 575 576 577 578 579 580 
+##   1   2   1   1   1   2   1   1   1   1   1   1   1   1   1   2   1   1   1   2 
+## 581 582 583 584 585 586 587 588 589 590 591 592 593 594 595 596 597 598 599 600 
+##   1   2   2   2   1   2   2   1   2   1   1   1   2   1   1   2   1   2   2   1 
+## 601 602 603 604 605 606 607 608 609 610 611 612 613 614 615 616 617 618 619 620 
+##   1   2   1   2   2   1   2   1   1   2   2   2   1   1   2   2   1   1   2   2 
+## 621 622 623 624 625 626 627 628 629 630 631 632 633 634 635 636 637 638 639 640 
+##   2   2   2   1   2   1   1   1   1   2   1   1   2   2   1   1   2   2   2   1 
+## 641 642 643 644 645 646 647 648 649 650 651 652 653 654 655 656 657 658 659 660 
+##   1   2   2   1   2   1   1   2   1   1   2   1   2   1   2   1   2   2   1   2 
+## 661 662 663 664 665 666 667 668 669 670 
+##   2   1   2   1   2   2   1   1   2   2 
+## Objective function:
+##     build      swap 
+## 0.1856442 0.1819618 
+## 
+## Available components:
+## [1] &quot;medoids&quot;    &quot;id.med&quot;     &quot;clustering&quot; &quot;objective&quot;  &quot;isolation&quot; 
+## [6] &quot;clusinfo&quot;   &quot;silinfo&quot;    &quot;diss&quot;       &quot;call&quot;</code></pre>
+<p>The medoids are at ID 174 and 398, so we can examine what these are below.</p>
+<pre class="r"><code>#finding center of cluster 1
+slice(staar, 174)</code></pre>
+<pre><code>##   District            Name TEA NCES Charter All.Math All.Reading Econ_Dis.Math
+## 1    61912 LAKE DALLAS ISD   D   21       N       48          47            40
+##   Econ_Dis.Reading Female.Math Female.Reading Male.Math Male.Reading
+## 1               35          49             52        47           43
+##   At_Risk.Math At_Risk.Reading Special.Math Special.Reading
+## 1           30              24           29              26</code></pre>
+<pre class="r"><code>#finding center of cluster 2
+slice(staar, 398)</code></pre>
+<pre><code>##   District         Name TEA NCES Charter All.Math All.Reading Econ_Dis.Math
+## 1   144901 GIDDINGS ISD   G   41       N       35          36            32
+##   Econ_Dis.Reading Female.Math Female.Reading Male.Math Male.Reading
+## 1               27          32             34        37           37
+##   At_Risk.Math At_Risk.Reading Special.Math Special.Reading
+## 1           28              22           25              25</code></pre>
+<pre class="r"><code>#checking average silhouette width
+pam_results1$silinfo$avg.width</code></pre>
+<pre><code>## [1] 0.1535983</code></pre>
+<div id="statistics" class="section level4">
+<h4>Statistics</h4>
+<pre class="r"><code># Statistics for numeric variables: mean
+staar_pam %&gt;%
+  group_by(cluster) %&gt;%
+  summarize_if(is.numeric, mean, na.rm = T)</code></pre>
+<pre><code>## # A tibble: 2 × 13
+##   cluster All.Math All.Reading Econ_Dis.Math Econ_Dis.Reading Female.Math
+##   &lt;fct&gt;      &lt;dbl&gt;       &lt;dbl&gt;         &lt;dbl&gt;            &lt;dbl&gt;       &lt;dbl&gt;
+## 1 1           53.0        48.1          43.8             38.6        51.1
+## 2 2           37.8        34.8          32.0             28.6        35.7
+## # … with 7 more variables: Female.Reading &lt;dbl&gt;, Male.Math &lt;dbl&gt;,
+## #   Male.Reading &lt;dbl&gt;, At_Risk.Math &lt;dbl&gt;, At_Risk.Reading &lt;dbl&gt;,
+## #   Special.Math &lt;dbl&gt;, Special.Reading &lt;dbl&gt;</code></pre>
+<pre class="r"><code># Statistics for categorical variables: proportions in each cluster (TEA)
+prop.table(table(staar_pam$cluster, staar_pam$TEA), margin = 1)</code></pre>
+<pre><code>##    
+##               A           B           C           D           E           F
+##   1 0.022160665 0.166204986 0.072022161 0.379501385 0.072022161 0.038781163
+##   2 0.009708738 0.058252427 0.042071197 0.071197411 0.122977346 0.012944984
+##    
+##               G           H           I
+##   1 0.036011080 0.124653740 0.088642659
+##   2 0.440129450 0.158576052 0.084142395</code></pre>
+<pre class="r"><code># Statistics for categorical variables: proportions in each cluster (NCES)
+prop.table(table(staar_pam$cluster, staar_pam$NCES), margin = 1)</code></pre>
+<pre><code>##    
+##             11         12         13         21         22         23
+##   1 0.11080332 0.03601108 0.04432133 0.22437673 0.05817175 0.01385042
+##   2 0.09061489 0.04207120 0.01941748 0.01941748 0.01618123 0.00000000
+##    
+##             31         32         33         41         42         43
+##   1 0.04432133 0.10249307 0.03878116 0.11634349 0.16897507 0.04155125
+##   2 0.04530744 0.15857605 0.14886731 0.20388350 0.16828479 0.08737864</code></pre>
+<pre class="r"><code># Statistics for categorical variables: proportions in each cluster (Charter)
+prop.table(table(staar_pam$cluster, staar_pam$Charter), margin = 1)</code></pre>
+<pre><code>##    
+##              N          Y
+##   1 0.91135734 0.08864266
+##   2 0.91585761 0.08414239</code></pre>
+<p><em>From the above information, we find that the center of cluster 1 is district number 174, which is Lake Dallas ISD, and the center of cluster 2 is district 298, or Giddings ISD. Please note the average silhouette width for this clustering is 0.153, which means no substantial structure was found. Therefore, while we can continue to analyze these cluster, we must note the clusters are not particularly strong.</em></p>
+<p><em>Cluster 1 has a higher mean rate of third graders passing for all the demographics and for both the reading and math STAAR scores than Cluster 2. For instance, Cluster 1 had an average All.Math score of 53.03, while Cluster 2 had an average All.Math score of 37.82. However, when it comes down to district characteristics, it seems that the distinction is not quite as clear. Cluster 1 is made up of more districts with the TEA classification A, B, C, D, F, and I than Cluster 2 (with Cluster 2 therefore having a greater proportion of E, G, and H). This is important to note because Clusters E, G, and H represent the “independent town,” “non-metropolitan - stable,” and “rural” distinctions (which I hypothesized may have lower scores all around). Examining the NCES data, this is echoed in that Cluster 2 has a much greater proportion of districts with code 33, 41, and 43 (town - remote, rural - fringe, and rural - remote), again the smaller and likely more economically disadvantaged districts. The proportion of Charter schools in Cluster 1 is relatively similar to the proportion in Cluster 2 (0.08 yes and 0.91 no), however.</em></p>
+</div>
+</div>
+</div>
+<div id="dimensionality-reduction" class="section level2">
+<h2>Dimensionality Reduction</h2>
+<div id="breaking-down-the-principal-components" class="section level3">
+<h3>Breaking Down the Principal Components</h3>
+<pre class="r"><code># PCA on dataset (all variables)
+pca_staar &lt;- staar_scale %&gt;%
+  prcomp()
+
+#checking on the components
+names(pca_staar)</code></pre>
+<pre><code>## [1] &quot;sdev&quot;     &quot;rotation&quot; &quot;center&quot;   &quot;scale&quot;    &quot;x&quot;</code></pre>
+</div>
+<div id="creating-a-scree-plot" class="section level3">
+<h3>Creating a Scree Plot</h3>
+<pre class="r"><code>#saving the percent variance explained by stdev
+percent &lt;- 100 * (pca_staar$sdev^2 / sum(pca_staar$sdev^2))
+
+#saving for each pc
+var_explained &lt;- data.frame(percent, PC = 1:length(percent))
+
+# visualizing the explained variance
+ggplot(var_explained, aes(x = PC, y = percent)) + 
+  geom_col() + 
+  geom_text(aes(label = round(percent, 2)), size = 4, vjust = -0.5) + 
+  ylim(0, 70)</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p><em>We aim to explain about 80% of the variability. From the Scree plot, we find that this is achieved when using the first three principal components (explaining 64.18%, 10.28%, and 8.98% of the variability respectively.)</em></p>
+</div>
+<div id="visualizing-observations-with-two-pcs" class="section level3">
+<h3>Visualizing Observations with Two PCs</h3>
+<pre class="r"><code>#finding how the individual points and the variables fall according to each dimension
+fviz_pca_biplot(pca_staar, col.ind = staar$TEA, col.var = &quot;black&quot;, repel = TRUE)</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p><em>From this plot, it is evident that all the variables negatively contribute to Dimension 1. Special Math and Special Reading contribute negatively to Dimension 2, while everything else contributes positively. Combined, the two dimensions explain 74.6% of the variability in the observations.</em></p>
+</div>
+<div id="interpreting-each-pc-retained" class="section level3">
+<h3>Interpreting each PC Retained</h3>
+<p>As noted above, I kept the first three PCs to achieve ~80% of variability explained. Here is some statistics on those first three PCs (interpretation at end of section):</p>
+<pre class="r"><code># saving rotation matrix 
+staar_rotation_data &lt;- data.frame(
+  pca_staar$rotation, 
+  variable = row.names(pca_staar$rotation))
+
+#examining rotation matrix for retained PCs
+staar_rotation_data %&gt;%
+  select(c(PC1, PC2, PC3)) </code></pre>
+<pre><code>##                         PC1          PC2        PC3
+## All.Math         -0.3359545  0.076840471 -0.2626755
+## All.Reading      -0.3260444  0.145580744  0.3144427
+## Econ_Dis.Math    -0.2986586  0.037794128 -0.3804226
+## Econ_Dis.Reading -0.2955742  0.096833769  0.2981942
+## Female.Math      -0.3101568  0.143662785 -0.2628983
+## Female.Reading   -0.2928995  0.195529649  0.3351194
+## Male.Math        -0.3216424  0.003884414 -0.2387879
+## Male.Reading     -0.3119848  0.071022740  0.2516714
+## At_Risk.Math     -0.2820213  0.008038123 -0.3485234
+## At_Risk.Reading  -0.2633493  0.052541980  0.2613489
+## Special.Math     -0.2001076 -0.664653792 -0.1502729
+## Special.Reading  -0.1804465 -0.673480899  0.2904372</code></pre>
+<pre class="r"><code>#visualizing the contributions of different variables to each PC
+fviz_contrib(pca_staar, choice = &quot;var&quot;, axes = 1, top = 5) # on PC1</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<pre class="r"><code>fviz_contrib(pca_staar, choice = &quot;var&quot;, axes = 2, top = 5) # on PC2</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-19-2.png" width="672" /></p>
+<pre class="r"><code>fviz_contrib(pca_staar, choice = &quot;var&quot;, axes = 3, top = 5) # on PC3</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-19-3.png" width="672" /></p>
+<p><em>For PC1, we find that the largest contributors are All.Math, All.Reading, Male.Math, Male.Reading, and Female.Math. Each of these contributes negatively to PC1 however. In fact, all the variables negatively contribute to PC1. Therefore, a higher PC1 score represents worse scores across the board, which are largely driven by the “all,” “male,” and “female” populations.</em></p>
+<p><em>For PC2, we find that the largest contributors are Special.Reading and Special.Math by a large margin (~90% combined) then Female.Reading, All.Reading, and Female.Math by a smaller margin. In fact, Special.Reading and Special.Math are the only two to contribute negatively to PC2, while the rest of the variables contribute positively. Therefore, a higher PC2 score represents better overall scores but worse scores for special education populations.</em></p>
+<p><em>For PC3, we find that the largest contributors are Econ_Dis.Math, At_Risk.Math, Female.Reading, All.Reading, and Econ_Dis.Reading. Econ_Dis.Math and At_Risk.Math are negative contributors, while Female.Reading, All.Reading, and Econ_Dis.Reading are positive contributors. In fact, it seems that all the math scores negatively contribute to PC3 while all the reading scores positively contribute. Therefore, a higher PC3 score represents better reading but worse math score.</em></p>
+</div>
+</div>
+<div id="classification-and-cross-validation" class="section level2">
+<h2>Classification and Cross-Validation</h2>
+<p>We then want to develop a model to classify our data. Our dataset contains one binary variable, Charter, so we will use the numeric variables to identify Charter. We would not use TEA or NCES because these contain a charter category.</p>
+<div id="applying-a-logistic-regression" class="section level3">
+<h3>Applying a Logistic Regression</h3>
+<pre class="r"><code>#making Charter 0/1 for simplicity
+staar &lt;- staar %&gt;%
+  mutate(Charter = ifelse(Charter == &quot;N&quot;, 0, 1))
+
+#creating logistic regression 
+staar_glm &lt;- glm(Charter ~ All.Math + All.Reading + Econ_Dis.Math + Econ_Dis.Reading + Female.Math + Female.Reading + Male.Math + Male.Reading + At_Risk.Math + At_Risk.Reading + Special.Math + Special.Reading, data = staar, family = &quot;binomial&quot;)
+
+summary(staar_glm)</code></pre>
+<pre><code>## 
+## Call:
+## glm(formula = Charter ~ All.Math + All.Reading + Econ_Dis.Math + 
+##     Econ_Dis.Reading + Female.Math + Female.Reading + Male.Math + 
+##     Male.Reading + At_Risk.Math + At_Risk.Reading + Special.Math + 
+##     Special.Reading, family = &quot;binomial&quot;, data = staar)
+## 
+## Deviance Residuals: 
+##     Min       1Q   Median       3Q      Max  
+## -1.8414  -0.4318  -0.2705  -0.1530   2.9370  
+## 
+## Coefficients:
+##                   Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)      -0.806678   0.578121  -1.395  0.16291    
+## All.Math         -0.033022   0.210475  -0.157  0.87533    
+## All.Reading      -0.113787   0.200770  -0.567  0.57088    
+## Econ_Dis.Math     0.076226   0.039991   1.906  0.05664 .  
+## Econ_Dis.Reading -0.132855   0.044837  -2.963  0.00305 ** 
+## Female.Math      -0.047998   0.099815  -0.481  0.63061    
+## Female.Reading    0.133531   0.095041   1.405  0.16003    
+## Male.Math        -0.073918   0.113951  -0.649  0.51654    
+## Male.Reading      0.075596   0.101570   0.744  0.45671    
+## At_Risk.Math      0.003997   0.025119   0.159  0.87358    
+## At_Risk.Reading   0.127867   0.026803   4.771 1.84e-06 ***
+## Special.Math     -0.020645   0.019405  -1.064  0.28739    
+## Special.Reading  -0.011023   0.018121  -0.608  0.54301    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## (Dispersion parameter for binomial family taken to be 1)
+## 
+##     Null deviance: 394.66  on 669  degrees of freedom
+## Residual deviance: 318.62  on 657  degrees of freedom
+## AIC: 344.62
+## 
+## Number of Fisher Scoring iterations: 6</code></pre>
+</div>
+<div id="examining-performance" class="section level3">
+<h3>Examining Performance</h3>
+<pre class="r"><code># Calculate a predicted probability
+log_staar &lt;- staar %&gt;% 
+  mutate(score = predict(staar_glm, type = &quot;response&quot;),
+         predicted = ifelse(score &lt; 0.5, 0, 1)) 
+head(log_staar)</code></pre>
+<pre><code>##   District          Name TEA NCES Charter All.Math All.Reading Econ_Dis.Math
+## 1     1902    CAYUGA ISD   H   43       0       84          61            68
+## 2     1903   ELKHART ISD   G   42       0       42          35            21
+## 3     1904 FRANKSTON ISD   H   42       0       49          43            44
+## 4     1907 PALESTINE ISD   E   32       0       44          45            39
+## 5     1908  WESTWOOD ISD   G   32       0       24          31            24
+## 6     2901   ANDREWS ISD   D   32       0       50          45            38
+##   Econ_Dis.Reading Female.Math Female.Reading Male.Math Male.Reading
+## 1               59          86             76        83           48
+## 2               21          43             41        40           30
+## 3               38          43             48        54           39
+## 4               41          36             43        51           48
+## 5               30          26             33        22           27
+## 6               41          46             50        54           40
+##   At_Risk.Math At_Risk.Reading Special.Math Special.Reading       score
+## 1           69              38           29              14 0.005062215
+## 2           35              35           25              25 0.305816009
+## 3           28               4           29              29 0.002460768
+## 4           39              39           31              31 0.139366374
+## 5            8              11           18              27 0.050209916
+## 6           19              37           15              15 0.091480265
+##   predicted
+## 1         0
+## 2         0
+## 3         0
+## 4         0
+## 5         0
+## 6         0</code></pre>
+<p>We can look at the confusion matrix to determine the false positive rate (FPR) and false negative rate (FNR).</p>
+<pre class="r"><code># Confusion matrix: compare true to predicted condition
+table(log_staar$Charter, log_staar$predicted) %&gt;% addmargins</code></pre>
+<pre><code>##      
+##         0   1 Sum
+##   0   610   2 612
+##   1    52   6  58
+##   Sum 662   8 670</code></pre>
+<p><em>From this, we find that there were two false positives and 52 false negatives. This means that the false positive rate is 2/612 and the false negative rate is 52/58.</em></p>
+<pre class="r"><code># ROC curve
+ROC &lt;- ggplot(log_staar) + 
+  geom_roc(aes(d = Charter, m = score), n.cuts = 0)
+ROC</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-23-1.png" width="672" /></p>
+<pre class="r"><code># Calculate the area under the curve
+calc_auc(ROC)</code></pre>
+<pre><code>##   PANEL group       AUC
+## 1     1    -1 0.8139509</code></pre>
+<p><em>The AUC is 0.813, which means the training model is “good.”</em></p>
+</div>
+<div id="cross-validation-with-10-fold-cv" class="section level3">
+<h3>Cross Validation with 10-fold CV</h3>
+<p>We must now evaluate how this model performs on “unseen” data, however. Therefore, we will apply 10-fold cross validation wherein we train the data on a portion of the data and test for 10 folds, then average the performance across the 10 folds.</p>
+<p>Here we will set the folds:</p>
+<pre class="r"><code># setting 10 folds 
+k = 10 
+
+# randomize
+set.seed(1028)
+data &lt;- staar[sample(nrow(staar)), ] 
+
+# creating the diff folds
+folds &lt;- cut(seq(1:nrow(data)), breaks = k, labels = FALSE)</code></pre>
+<p>We will then run a for loop to find the AUC for each of the folds:</p>
+<pre class="r"><code># for loop for each set
+diags_k &lt;- NULL
+
+for(i in 1:k){
+  # training and testing set
+  train &lt;- data[folds != i, ] #not fold i
+  test &lt;- data[folds == i, ]  #fold i
+  
+  # training model
+  fit &lt;- glm(Charter ~ All.Math + All.Reading + Econ_Dis.Math + Econ_Dis.Reading + Female.Math
+             + Female.Reading + Male.Math + Male.Reading + At_Risk.Math + At_Risk.Reading +
+               Special.Math + Special.Reading, data = staar, family = &quot;binomial&quot;)
+  
+  # putting model on test set
+  df &lt;- data.frame(
+    probability = (ifelse(predict(staar_glm, newdata = test, type = &quot;response&quot;) &lt; 0.5, 0, 1)),
+    outcome = test$Charter)
+  
+  # ROC for test
+  ROC &lt;- ggplot(df) + 
+    geom_roc(aes(d = outcome, m = probability))
+
+  # auc for each fold
+  diags_k[i] &lt;- calc_auc(ROC)$AUC
+}</code></pre>
+<p>We can then find the average performance for all the folds.</p>
+<pre class="r"><code># avg performance across folds
+mean(diags_k)</code></pre>
+<pre><code>## [1] 0.5534325</code></pre>
+<p><em>From this, we find that the AUC falls from 0.81 (with the logistic regression alone) to 0.55 (when cross-validated). Therefore, the performance is now considered “bad,” which indicates that our model was likely overfit before.</em></p>
+</div>
+</div>
+
+            
+        <hr>         <div class="related-posts">
+                <h5>Related Posts</h5>
+                
+              </div> 
+            </div>
+          </div>
+
+   <hr>  <div class="disqus">
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+
+    (function() {
+      
+      
+      if (window.location.hostname == "localhost")
+        return;
+
+      var disqus_shortname = '';
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</div> 
+        </div>
+      </div>
+    </div>
+
+    
+    <footer>
+  <div id="footer">
+    <div class="container">
+      <p class="text-muted">&copy; All rights reserved. Powered by <a href="https://gohugo.io/">Hugo</a> and
+      <a href="http://www.github.com/nurlansu/hugo-sustain/">sustain</a> with ♥</p>
+    </div>
+  </div>
+</footer>
+<div class="footer"></div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script src="/js/docs.min.js"></script>
+<script src="/js/main.js"></script>
+
+<script src="/js/ie10-viewport-bug-workaround.js"></script>
+
+
+    
+  </body>
+</html>

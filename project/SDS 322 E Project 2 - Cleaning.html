@@ -1,0 +1,157 @@
+
+
+<div id="initializing-libraries" class="section level2">
+<h2>Initializing Libraries</h2>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──</code></pre>
+<pre><code>## ✓ ggplot2 3.3.5     ✓ purrr   0.3.4
+## ✓ tibble  3.1.6     ✓ dplyr   1.0.7
+## ✓ tidyr   1.1.4     ✓ stringr 1.4.0
+## ✓ readr   2.1.1     ✓ forcats 0.5.1</code></pre>
+<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(tibble)
+library(dplyr)
+library(ggplot2)</code></pre>
+</div>
+<div id="data-upload" class="section level2">
+<h2>Data Upload</h2>
+<pre class="r"><code>#uploading district data
+district &lt;- read.csv(&quot;DistrictType.csv&quot;)
+#uploading staar data
+staar &lt;- read.csv(&quot;STAAR.csv&quot;)</code></pre>
+</div>
+<div id="data-cleaning" class="section level2">
+<h2>Data Cleaning</h2>
+<div id="picking-relevant-variables" class="section level3">
+<h3>Picking Relevant Variables</h3>
+<pre class="r"><code>#cleaning district data
+district &lt;- district %&gt;%
+  #removing descriptions - will just note these from district type codes
+  select(-c(TEA.Description, NCES.Description)) %&gt;%
+  mutate(TEA.District.Type = as.factor(TEA.District.Type),
+         NCES.District.Type = as.factor(NCES.District.Type)) %&gt;%
+  #renaming variables to be shorter
+  rename(Name = District, District = District.Number, TEA = TEA.District.Type, NCES = NCES.District.Type, Charter = Charter.School..Y.N.)</code></pre>
+<pre class="r"><code>#cleaning STAAR data
+staar &lt;- staar %&gt;%
+  #removing apostrophes from district numbers
+  separate(col = DISTRICT, into = c(&#39;apostrophe&#39;, &#39;District&#39;), sep = &quot;&#39;&quot;) %&gt;%
+  select(-apostrophe) %&gt;%
+  #selecting specific data per population
+  select(District, DDA03AMA1219R,   DDA03ARE1219R, DDE03AMA1219R, DDE03ARE1219R, DDF03AMA1219R,
+         DDF03ARE1219R, DDM03AMA1219R,  DDM03ARE1219R,  DDR03AMA1219R,  DDR03ARE1219R,
+         DDS03AMA1219R, DDS03ARE1219R) %&gt;%
+  #renaming the variables to their descriptors
+  rename(All.Math = DDA03AMA1219R,  
+         All.Reading = DDA03ARE1219R,
+         Econ_Dis.Math = DDE03AMA1219R,
+         Econ_Dis.Reading = DDE03ARE1219R, 
+         Female.Math = DDF03AMA1219R, 
+         Female.Reading = DDF03ARE1219R, 
+         Male.Math = DDM03AMA1219R, 
+         Male.Reading = DDM03ARE1219R,  
+         At_Risk.Math = DDR03AMA1219R,  
+         At_Risk.Reading = DDR03ARE1219R,
+         Special.Math = DDS03AMA1219R,  
+         Special.Reading = DDS03ARE1219R)
+
+glimpse(staar)</code></pre>
+<pre><code>## Rows: 1,202
+## Columns: 13
+## $ District         &lt;chr&gt; &quot;001902&quot;, &quot;001903&quot;, &quot;001904&quot;, &quot;001906&quot;, &quot;001907&quot;, &quot;00…
+## $ All.Math         &lt;chr&gt; &quot;84&quot;, &quot;42&quot;, &quot;49&quot;, &quot;26&quot;, &quot;44&quot;, &quot;24&quot;, &quot;48&quot;, &quot;50&quot;, &quot;56&quot;,…
+## $ All.Reading      &lt;chr&gt; &quot;61&quot;, &quot;35&quot;, &quot;43&quot;, &quot;30&quot;, &quot;45&quot;, &quot;31&quot;, &quot;44&quot;, &quot;45&quot;, &quot;46&quot;,…
+## $ Econ_Dis.Math    &lt;chr&gt; &quot;68&quot;, &quot;21&quot;, &quot;44&quot;, &quot;0&quot;, &quot;39&quot;, &quot;24&quot;, &quot;53&quot;, &quot;38&quot;, &quot;49&quot;, …
+## $ Econ_Dis.Reading &lt;chr&gt; &quot;59&quot;, &quot;21&quot;, &quot;38&quot;, &quot;10&quot;, &quot;41&quot;, &quot;30&quot;, &quot;47&quot;, &quot;41&quot;, &quot;37&quot;,…
+## $ Female.Math      &lt;chr&gt; &quot;86&quot;, &quot;43&quot;, &quot;43&quot;, &quot;25&quot;, &quot;36&quot;, &quot;26&quot;, &quot;55&quot;, &quot;46&quot;, &quot;59&quot;,…
+## $ Female.Reading   &lt;chr&gt; &quot;76&quot;, &quot;41&quot;, &quot;48&quot;, &quot;33&quot;, &quot;43&quot;, &quot;33&quot;, &quot;55&quot;, &quot;50&quot;, &quot;54&quot;,…
+## $ Male.Math        &lt;chr&gt; &quot;83&quot;, &quot;40&quot;, &quot;54&quot;, &quot;27&quot;, &quot;51&quot;, &quot;22&quot;, &quot;44&quot;, &quot;54&quot;, &quot;53&quot;,…
+## $ Male.Reading     &lt;chr&gt; &quot;48&quot;, &quot;30&quot;, &quot;39&quot;, &quot;27&quot;, &quot;48&quot;, &quot;27&quot;, &quot;38&quot;, &quot;40&quot;, &quot;38&quot;,…
+## $ At_Risk.Math     &lt;chr&gt; &quot;69&quot;, &quot;35&quot;, &quot;28&quot;, &quot;-1&quot;, &quot;39&quot;, &quot;8&quot;, &quot;38&quot;, &quot;19&quot;, &quot;9&quot;, &quot;…
+## $ At_Risk.Reading  &lt;chr&gt; &quot;38&quot;, &quot;35&quot;, &quot;4&quot;, &quot;-1&quot;, &quot;39&quot;, &quot;11&quot;, &quot;31&quot;, &quot;37&quot;, &quot;27&quot;, …
+## $ Special.Math     &lt;chr&gt; &quot;29&quot;, &quot;25&quot;, &quot;29&quot;, &quot;-1&quot;, &quot;31&quot;, &quot;18&quot;, &quot;-1&quot;, &quot;15&quot;, &quot;-1&quot;,…
+## $ Special.Reading  &lt;chr&gt; &quot;14&quot;, &quot;25&quot;, &quot;29&quot;, &quot;-1&quot;, &quot;31&quot;, &quot;27&quot;, &quot;-1&quot;, &quot;15&quot;, &quot;-1&quot;,…</code></pre>
+</div>
+<div id="cleaning-nas" class="section level3">
+<h3>Cleaning NAs</h3>
+<pre class="r"><code>#Coding -1s and .s (which means NA) to NA
+staar[staar == -1] &lt;- NA
+staar[staar == &quot;.&quot;] &lt;- NA
+
+#Removing rows with na
+staar &lt;- staar %&gt;%
+  na.omit()
+
+glimpse(staar)</code></pre>
+<pre><code>## Rows: 670
+## Columns: 13
+## $ District         &lt;chr&gt; &quot;001902&quot;, &quot;001903&quot;, &quot;001904&quot;, &quot;001907&quot;, &quot;001908&quot;, &quot;00…
+## $ All.Math         &lt;chr&gt; &quot;84&quot;, &quot;42&quot;, &quot;49&quot;, &quot;44&quot;, &quot;24&quot;, &quot;50&quot;, &quot;56&quot;, &quot;39&quot;, &quot;44&quot;,…
+## $ All.Reading      &lt;chr&gt; &quot;61&quot;, &quot;35&quot;, &quot;43&quot;, &quot;45&quot;, &quot;31&quot;, &quot;45&quot;, &quot;41&quot;, &quot;35&quot;, &quot;36&quot;,…
+## $ Econ_Dis.Math    &lt;chr&gt; &quot;68&quot;, &quot;21&quot;, &quot;44&quot;, &quot;39&quot;, &quot;24&quot;, &quot;38&quot;, &quot;43&quot;, &quot;36&quot;, &quot;38&quot;,…
+## $ Econ_Dis.Reading &lt;chr&gt; &quot;59&quot;, &quot;21&quot;, &quot;38&quot;, &quot;41&quot;, &quot;30&quot;, &quot;41&quot;, &quot;29&quot;, &quot;30&quot;, &quot;35&quot;,…
+## $ Female.Math      &lt;chr&gt; &quot;86&quot;, &quot;43&quot;, &quot;43&quot;, &quot;36&quot;, &quot;26&quot;, &quot;46&quot;, &quot;59&quot;, &quot;35&quot;, &quot;35&quot;,…
+## $ Female.Reading   &lt;chr&gt; &quot;76&quot;, &quot;41&quot;, &quot;48&quot;, &quot;43&quot;, &quot;33&quot;, &quot;50&quot;, &quot;46&quot;, &quot;36&quot;, &quot;34&quot;,…
+## $ Male.Math        &lt;chr&gt; &quot;83&quot;, &quot;40&quot;, &quot;54&quot;, &quot;51&quot;, &quot;22&quot;, &quot;54&quot;, &quot;53&quot;, &quot;43&quot;, &quot;54&quot;,…
+## $ Male.Reading     &lt;chr&gt; &quot;48&quot;, &quot;30&quot;, &quot;39&quot;, &quot;48&quot;, &quot;27&quot;, &quot;40&quot;, &quot;35&quot;, &quot;35&quot;, &quot;38&quot;,…
+## $ At_Risk.Math     &lt;chr&gt; &quot;69&quot;, &quot;35&quot;, &quot;28&quot;, &quot;39&quot;, &quot;8&quot;, &quot;19&quot;, &quot;45&quot;, &quot;28&quot;, &quot;26&quot;, …
+## $ At_Risk.Reading  &lt;chr&gt; &quot;38&quot;, &quot;35&quot;, &quot;4&quot;, &quot;39&quot;, &quot;11&quot;, &quot;37&quot;, &quot;18&quot;, &quot;20&quot;, &quot;14&quot;, …
+## $ Special.Math     &lt;chr&gt; &quot;29&quot;, &quot;25&quot;, &quot;29&quot;, &quot;31&quot;, &quot;18&quot;, &quot;15&quot;, &quot;33&quot;, &quot;31&quot;, &quot;50&quot;,…
+## $ Special.Reading  &lt;chr&gt; &quot;14&quot;, &quot;25&quot;, &quot;29&quot;, &quot;31&quot;, &quot;27&quot;, &quot;15&quot;, &quot;27&quot;, &quot;31&quot;, &quot;38&quot;,…</code></pre>
+</div>
+<div id="joining-the-data" class="section level3">
+<h3>Joining the Data</h3>
+<pre class="r"><code>#Making key a number type
+staar &lt;- staar %&gt;%
+  mutate(District = as.numeric(District))
+
+#Joining two datasets together
+staarjoin = left_join(staar, district, key = District)</code></pre>
+<pre><code>## Joining, by = &quot;District&quot;</code></pre>
+<pre class="r"><code>#reordering 
+staarjoin &lt;- staarjoin %&gt;%
+  select(District, Name, TEA, NCES, Charter, All.Math, All.Reading, Econ_Dis.Math,   
+         Econ_Dis.Reading,Female.Math, Female.Reading, Male.Math, Male.Reading, 
+         At_Risk.Math, At_Risk.Reading, Special.Math, Special.Reading)
+
+glimpse(staarjoin)</code></pre>
+<pre><code>## Rows: 670
+## Columns: 17
+## $ District         &lt;dbl&gt; 1902, 1903, 1904, 1907, 1908, 2901, 3902, 3903, 3904,…
+## $ Name             &lt;chr&gt; &quot;CAYUGA ISD&quot;, &quot;ELKHART ISD&quot;, &quot;FRANKSTON ISD&quot;, &quot;PALEST…
+## $ TEA              &lt;fct&gt; H, G, H, E, G, D, G, E, G, G, G, G, G, G, E, G, E, D,…
+## $ NCES             &lt;fct&gt; 43, 42, 42, 32, 32, 32, 33, 33, 42, 33, 41, 32, 32, 3…
+## $ Charter          &lt;chr&gt; &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;, &quot;N&quot;…
+## $ All.Math         &lt;chr&gt; &quot;84&quot;, &quot;42&quot;, &quot;49&quot;, &quot;44&quot;, &quot;24&quot;, &quot;50&quot;, &quot;56&quot;, &quot;39&quot;, &quot;44&quot;,…
+## $ All.Reading      &lt;chr&gt; &quot;61&quot;, &quot;35&quot;, &quot;43&quot;, &quot;45&quot;, &quot;31&quot;, &quot;45&quot;, &quot;41&quot;, &quot;35&quot;, &quot;36&quot;,…
+## $ Econ_Dis.Math    &lt;chr&gt; &quot;68&quot;, &quot;21&quot;, &quot;44&quot;, &quot;39&quot;, &quot;24&quot;, &quot;38&quot;, &quot;43&quot;, &quot;36&quot;, &quot;38&quot;,…
+## $ Econ_Dis.Reading &lt;chr&gt; &quot;59&quot;, &quot;21&quot;, &quot;38&quot;, &quot;41&quot;, &quot;30&quot;, &quot;41&quot;, &quot;29&quot;, &quot;30&quot;, &quot;35&quot;,…
+## $ Female.Math      &lt;chr&gt; &quot;86&quot;, &quot;43&quot;, &quot;43&quot;, &quot;36&quot;, &quot;26&quot;, &quot;46&quot;, &quot;59&quot;, &quot;35&quot;, &quot;35&quot;,…
+## $ Female.Reading   &lt;chr&gt; &quot;76&quot;, &quot;41&quot;, &quot;48&quot;, &quot;43&quot;, &quot;33&quot;, &quot;50&quot;, &quot;46&quot;, &quot;36&quot;, &quot;34&quot;,…
+## $ Male.Math        &lt;chr&gt; &quot;83&quot;, &quot;40&quot;, &quot;54&quot;, &quot;51&quot;, &quot;22&quot;, &quot;54&quot;, &quot;53&quot;, &quot;43&quot;, &quot;54&quot;,…
+## $ Male.Reading     &lt;chr&gt; &quot;48&quot;, &quot;30&quot;, &quot;39&quot;, &quot;48&quot;, &quot;27&quot;, &quot;40&quot;, &quot;35&quot;, &quot;35&quot;, &quot;38&quot;,…
+## $ At_Risk.Math     &lt;chr&gt; &quot;69&quot;, &quot;35&quot;, &quot;28&quot;, &quot;39&quot;, &quot;8&quot;, &quot;19&quot;, &quot;45&quot;, &quot;28&quot;, &quot;26&quot;, …
+## $ At_Risk.Reading  &lt;chr&gt; &quot;38&quot;, &quot;35&quot;, &quot;4&quot;, &quot;39&quot;, &quot;11&quot;, &quot;37&quot;, &quot;18&quot;, &quot;20&quot;, &quot;14&quot;, …
+## $ Special.Math     &lt;chr&gt; &quot;29&quot;, &quot;25&quot;, &quot;29&quot;, &quot;31&quot;, &quot;18&quot;, &quot;15&quot;, &quot;33&quot;, &quot;31&quot;, &quot;50&quot;,…
+## $ Special.Reading  &lt;chr&gt; &quot;14&quot;, &quot;25&quot;, &quot;29&quot;, &quot;31&quot;, &quot;27&quot;, &quot;15&quot;, &quot;27&quot;, &quot;31&quot;, &quot;38&quot;,…</code></pre>
+</div>
+<div id="further-data-manipulation" class="section level3">
+<h3>Further Data Manipulation</h3>
+<pre class="r"><code>#pivoting the scores 
+staar_pivot &lt;- 
+  staarjoin %&gt;%
+  pivot_longer(cols = c(All.Math, All.Reading, Econ_Dis.Math, Econ_Dis.Reading, 
+                        Female.Math, Female.Reading, 
+                         Male.Math, Male.Reading, At_Risk.Math, 
+                        At_Risk.Reading,Special.Math, Special.Reading),
+               names_to = c(&quot;Student_Population&quot;, &quot;Subject&quot;), 
+               names_sep = &quot;(\\.)&quot;,
+               values_to = &quot;Score&quot;)</code></pre>
+<p><em>Please note that this pivot dataset is used to make the data tidy. However, for the purposes of further analysis, the previous joined dataset is better because it allows me to analyze academic outcomes for a specific segment without filtering.</em></p>
+<pre class="r"><code>#saving new datasets
+write.csv(staarjoin, &quot;staarjoin.csv&quot;)
+write.csv(staar_pivot, &quot;staar_pivot.csv&quot;)</code></pre>
+</div>
+</div>

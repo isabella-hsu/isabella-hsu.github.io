@@ -1,0 +1,130 @@
+---
+title: 'SDS 322E Project 2 - Cleaning'
+author: "Isabella Hsu"
+date: "5/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Initializing Libraries
+```{r}
+library(tidyverse)
+library(tibble)
+library(dplyr)
+library(ggplot2)
+```
+
+## Data Upload
+
+```{r}
+#uploading district data
+district <- read.csv("DistrictType.csv")
+#uploading staar data
+staar <- read.csv("STAAR.csv")
+```
+
+## Data Cleaning
+
+### Picking Relevant Variables
+
+```{r}
+#cleaning district data
+district <- district %>%
+  #removing descriptions - will just note these from district type codes
+  select(-c(TEA.Description, NCES.Description)) %>%
+  mutate(TEA.District.Type = as.factor(TEA.District.Type),
+         NCES.District.Type = as.factor(NCES.District.Type)) %>%
+  #renaming variables to be shorter
+  rename(Name = District, District = District.Number, TEA = TEA.District.Type, NCES = NCES.District.Type, Charter = Charter.School..Y.N.)
+```
+
+```{r}
+#cleaning STAAR data
+staar <- staar %>%
+  #removing apostrophes from district numbers
+  separate(col = DISTRICT, into = c('apostrophe', 'District'), sep = "'") %>%
+  select(-apostrophe) %>%
+  #selecting specific data per population
+  select(District, DDA03AMA1219R,	DDA03ARE1219R, DDE03AMA1219R, DDE03ARE1219R, DDF03AMA1219R,
+         DDF03ARE1219R, DDM03AMA1219R,	DDM03ARE1219R,	DDR03AMA1219R,	DDR03ARE1219R,
+         DDS03AMA1219R,	DDS03ARE1219R) %>%
+  #renaming the variables to their descriptors
+  rename(All.Math = DDA03AMA1219R,	
+         All.Reading = DDA03ARE1219R,
+         Econ_Dis.Math = DDE03AMA1219R,
+         Econ_Dis.Reading = DDE03ARE1219R, 
+         Female.Math = DDF03AMA1219R, 
+         Female.Reading = DDF03ARE1219R, 
+         Male.Math = DDM03AMA1219R,	
+         Male.Reading = DDM03ARE1219R,	
+         At_Risk.Math = DDR03AMA1219R,	
+         At_Risk.Reading = DDR03ARE1219R,
+         Special.Math = DDS03AMA1219R,	
+         Special.Reading = DDS03ARE1219R)
+
+glimpse(staar)
+
+```
+
+### Cleaning NAs 
+```{r}
+#Coding -1s and .s (which means NA) to NA
+staar[staar == -1] <- NA
+staar[staar == "."] <- NA
+
+#Removing rows with na
+staar <- staar %>%
+  na.omit()
+
+glimpse(staar)
+```
+
+### Joining the Data 
+
+```{r}
+
+#Making key a number type
+staar <- staar %>%
+  mutate(District = as.numeric(District))
+
+#Joining two datasets together
+staarjoin = left_join(staar, district, key = District)
+
+#reordering 
+staarjoin <- staarjoin %>%
+  select(District, Name, TEA, NCES, Charter, All.Math, All.Reading, Econ_Dis.Math,   
+         Econ_Dis.Reading,Female.Math, Female.Reading, Male.Math, Male.Reading, 
+         At_Risk.Math, At_Risk.Reading, Special.Math, Special.Reading)
+
+glimpse(staarjoin)
+```
+
+
+### Further Data Manipulation
+
+```{r}
+#pivoting the scores 
+staar_pivot <- 
+  staarjoin %>%
+  pivot_longer(cols = c(All.Math, All.Reading, Econ_Dis.Math, Econ_Dis.Reading, 
+                        Female.Math, Female.Reading, 
+                         Male.Math, Male.Reading, At_Risk.Math, 
+                        At_Risk.Reading,Special.Math, Special.Reading),
+               names_to = c("Student_Population", "Subject"), 
+               names_sep = "(\\.)",
+               values_to = "Score")
+
+```
+*Please note that this pivot dataset is used to make the data tidy. However, for the purposes of further analysis, the previous joined dataset is better because it allows me to analyze academic outcomes for a specific segment without filtering.*
+
+```{r}
+#saving new datasets
+write.csv(staarjoin, "staarjoin.csv")
+write.csv(staar_pivot, "staar_pivot.csv")
+
+```
+
+

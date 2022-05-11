@@ -1,0 +1,365 @@
+---
+title: "Energy Transition, Emissions, and Production"
+subtitle: "SDS 322E Project 1"
+author: "Isabella Hsu"
+date: March 25, 2022
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Part 1: Introduction
+
+The datasets in this report focus on energy production and emissions in the United States. Specifically, MER_T01_02 contains monthly and annual data regarding production of several different energy types, while MER_T01_07 contains annual data regarding various emissions measurements. Both datasets were published on eia.gov, which is the website for the U.S. Energy Information Administration.
+
+I chose these datasets because of my interest in the energy transition. I wanted to analyze how energy production has changed in regards to the types of energy produced and those effects on peak emissions. In particular, I expect to find that energy production for the most emissions-heavy sources has decreased as a percentage of total energy production. For the fossil fuels space, this would mean that coal has substantially decreased production as a percentage of total energy production, while things like liquefied natural gas and natural gas have seen an uptick. This also means that renewables would compose a greater percentage of total energy production. In regards to emissions, I hypothesize that emissions per capita has decreased in years with greater renewable energy production. However, it is possible this will not hold true if overall energy consumption per capita has substantially increased over the years, regardless of energy transition.  
+
+```{r}
+#uploading energy production data
+production <- read.csv("MER_T01_02.csv")
+#uploading energy emissions data
+emissions <- read.csv("MER_T01_07.csv")
+
+```
+
+## Part 2: Tidying
+Overview: In this section, I will tidy the data by completing the following actions: 
+
+* removing columns that represent the same information (MSN,Column_Order are coding and metadata representing the column Description, units may also be tied to each Description)
+* giving each energy production type its own column in the production dataset
+* giving each emissions data type its own column in the emissions dataset
+* separating the month and year data
+* keeping only the annual summaries for the production and emissions dataset.
+
+I will begin by loading necessary libraries.
+```{r}
+#loading necessary libraries
+library(tidyverse)
+library(ggplot2)
+library(stringr)
+
+```
+
+I will then examine both datasets to see their structures.
+```{r}
+#viewing the datasets - production
+glimpse(production)
+#viewing the datasets - emissions
+glimpse(emissions)
+```
+
+Both the production and emissions have a "description" category representing different variables (e.g. coal production, natural gas production, etc for the production dataset and total primary energy consumption, energy expenditures, etc for the emissions dataset.) I will give each of these variables their own column. 
+
+I will do this first for production:
+```{r}
+#removing the MSN column and column_order because it is simply coding the description
+production <- 
+  production %>%
+  select(-MSN, -Column_Order) %>%
+#removing the units because it is metadata for the variables (and same for all production)
+  select(-Unit) %>%
+#giving each energy production type its own column
+  pivot_wider(names_from = Description,
+              values_from = Value)
+
+#checking out these updates
+production
+
+```
+I will then do this for emissions:
+```{r}
+#removing the MSN column and column_order because it is simply coding the description
+emissions <-
+  emissions %>%
+  select(-MSN, -Column_Order) %>%
+#removing the units too because they are tied to each variable
+  select(-Unit) %>%
+#giving each energy production type its own column
+  pivot_wider(names_from = Description,
+              values_from = Value) 
+
+#checking out these updates
+emissions
+
+
+```
+I now want to separate the YYYMM column into year and month for both the production and emissions datasets.
+```{r}
+#separating year and month in production dataset
+production <- production %>% 
+  separate(YYYYMM, into = c("Year", "Month"), sep =4)
+
+#viewing changes
+production
+
+#separating year and month in emissions dataset
+emissions <- emissions %>% 
+  separate(YYYYMM, into = c("Year", "Month"), sep =4)
+
+#viewing changes
+emissions
+  
+```
+
+The production dataset contains both annual and monthly data, while the emissions data only contains annual. Therefore, I will keep only the annual data in the production dataset.
+```{r}
+#filtering for only month 13 (annual data) in production dataset
+production <- production %>%
+  filter(Month == "13")
+
+#viewing changes
+head(production)
+
+```
+
+Because I am keeping only the annual data, I can remove the month column for both datasets since all simply say "13", the code for annual data. 
+```{r}
+#removing month for production
+production <- production %>% 
+  select(-Month)
+#viewing changes
+glimpse(production)
+
+#removing month for emissions
+emissions <- emissions %>% 
+  select(-Month)
+#viewing changes
+glimpse(emissions)
+```
+## Part 3: Joining & Merging
+Overview: In this section, I will complete the following actions: 
+
+* Analyze the number of observations, unique observations, and observations that appear in one dataset but not the other
+* Join the two datasets together
+
+I will first examine our data before joining.
+```{r}
+#looking at production data
+glimpse(production)
+#number of unique IDs
+production %>%
+  summarize(no_unique_IDs = n_distinct(Year))
+
+#looking at emissions data
+glimpse(emissions)
+#number of unique IDs
+emissions %>%
+  summarize(no_unique_IDs = n_distinct(Year))
+
+#number of IDs in one dataset but not the other
+anti_join(production, emissions, key = "Year")
+```
+
+*Please note that there are currently 72 observations in each dataset. Each also contains 72 unique ID variables, and there are no (0) IDs that appear in one dataset but not the other.*
+
+
+
+I will now join the two cleaned datasets. I used a full join to include all the variables from both datasets.
+```{r}
+prod_emissions <- 
+  full_join(production, emissions, by = "Year")
+
+#examining joined dataset
+prod_emissions
+dim(prod_emissions)
+
+```
+*This new dataset did not drop any observations/rows when joining the datasets. Because both datasets used the years 1949-2020 as their IDs, all the data in both datasets were kept. Thus, the joining process should not pose any issues.* 
+
+*Note, however, that this clean joining process occurred only because of the cleaning process and serendipity. I had already removed the monthly data from the production dataset, meaning each dataset had only one unique year key on which to match, and both datasets happened to cover the same timespan.*
+
+
+## Part 4: Data Wrangling
+Overview: In this section, I will wrangle the data by completing the following actions: 
+
+**Mutate**
+
+* creating a variable that delineates production of each fossil fuel energy type as a percentage of total fossil fuels production
+* creating a variable that represents the decade for that observation
+
+**Group By/Summarize/Arrange**
+
+* finding the decades with the highest and lowest average annual CO2 emissions respectively
+
+**Summary Statistics - Filter/Select**
+
+* finding the average annual renewable and fossil fuels production in the decades of highest and lowest average annual CO2 emissions respectively
+* creating a categorical variable for high, low, and medium primary energy consumption per capita and finding the frequency of each
+
+First I will create the necessary variables for future graphs and analyses.
+```{r}
+#creating a variable finding % of each energy type 
+#using mutate function
+prod_emissions_pct <- prod_emissions %>%
+  rename("Coal_Prod" = "Coal Production",
+         "Natural_Gas_Prod" = "Natural Gas (Dry) Production",
+         "Crude_Oil_Prod" = "Crude Oil Production",
+         "Natural_Gas_L_Prod" = "Natural Gas Plant Liquids Production",
+         "Total_Fossil_Prod" = "Total Fossil Fuels Production") %>%
+  mutate_at(2:5, funs(pct_fuel = (as.numeric(.)/as.numeric(Total_Fossil_Prod)*100)))
+
+#creating a variable with decade
+prod_emissions_pct <- 
+  prod_emissions_pct %>%
+  mutate(Decade = as.numeric(Year) - as.numeric(str_sub(Year, -1, -1)))
+
+#viewing
+glimpse(prod_emissions_pct)
+
+```
+
+I will then find the decades with the highest and lowest annual average CO2 emissions. 
+```{r}
+#FINDING MIN/MAX DECADES OF EMISSIONS
+#finding decade with highest and lowest annual avg CO2 emissions 
+decade_emissions <- prod_emissions_pct %>% 
+  rename("Total_CO2_Emissions_Capita" = "Total Energy CO2 Emissions per Capita") %>%
+  group_by(Decade) %>%
+  summarize(Av_Decade_CO2_Capita = mean(as.numeric(Total_CO2_Emissions_Capita)))
+
+#lowest decade for avg yearly CO2 emissions per capita
+decade_emissions %>%
+  arrange(Av_Decade_CO2_Capita) %>%
+  slice(n=1)
+
+#highest decade for avg yearly CO2 emissions per capita 
+decade_emissions %>% 
+ arrange(desc(Av_Decade_CO2_Capita)) %>%
+ slice(n=1)
+
+```
+*From this we find that the decade with the lowest average yearly CO2 emissions per capita is 2020 and the highest was 1970.*
+
+These decades are applied to help us filter our data and find the average yearly renewable energy production and average yearly fossil fuel production in the decades with the highest and lowest annual average CO2 emissions. 
+```{r}
+#SUMMARY STATISTICS - NUMERICAL
+#finding mean renewable/fossil energy in the decades with highest/lowest avg yearly CO2 emissions per capita
+
+#mean yrly renewable energy production in 2020 decade 
+prod_emissions_pct %>% 
+  filter(Decade == 2020) %>%
+  select("Total Renewable Energy Production") %>%
+  rename("Renewable_Prod" = "Total Renewable Energy Production") %>%
+  summarize(mean_renewable = mean(as.numeric(Renewable_Prod)))
+
+#mean yrly renewable energy production in 1970 decade
+prod_emissions_pct %>% 
+  filter(Decade == 1970) %>%
+  select("Total Renewable Energy Production") %>%
+  rename("Renewable_Prod" = "Total Renewable Energy Production") %>%
+  summarize(mean_renewable = mean(as.numeric(Renewable_Prod)))
+
+#mean yrly fossil fuel production in 2020 decade
+prod_emissions_pct %>% 
+  filter(Decade == 2020) %>%
+  select("Total_Fossil_Prod") %>%
+  summarize(mean_fossil = mean(as.numeric(Total_Fossil_Prod)))
+
+#mean yrly fossil fuel production in 1970 decade
+prod_emissions_pct %>% 
+  filter(Decade == 1970) %>%
+  select("Total_Fossil_Prod") %>%
+  summarize(mean_fossil = mean(as.numeric(Total_Fossil_Prod)))
+```
+*In the decade with the lowest CO2 emissions per capita (2020), mean annual renewable production was 11.66 Quadrillion BTU, while it was only 4.56 Quadrillion BTU in the decade with the highest CO2 emissions per capita (1970). Fossil fuel, however, was also higher in the decade with the lowest CO2 emissions per capita (2020) at 75.73 Quadrillion BTU compared to only 56.80 Quadrillion BTU in the decade with the highest CO2 emissions per capita (1970).*
+
+For our categorical analysis, I created a categorical variable delineating low, medium, and high primary energy consumption and determined how many years fell into each of those categories. 
+
+```{r}
+#SUMMARY STATISTICS - CATEGORICAL
+#creating a categorical variable for primary energy consumption per capita - low, med, high
+prod_emissions_cat <- 
+  prod_emissions_pct %>%
+  rename("Primary_Energy_Cons_Cap" = "Total Primary Energy Consumption per Capita") %>%
+  mutate(total_primary_energy_cons_capita_cat = ifelse(as.numeric(Primary_Energy_Cons_Cap) < 300, "low",
+        ifelse(as.numeric(Primary_Energy_Cons_Cap) > 330, "high", "medium")))
+  
+#counting number of years with low energy consumption per capita
+prod_emissions_cat %>%
+  filter(total_primary_energy_cons_capita_cat == "low") %>%
+  summarize(count_low_consumption = n())
+
+#counting number of years with medium energy consumption per capita
+prod_emissions_cat %>%
+  filter(total_primary_energy_cons_capita_cat == "medium") %>%
+  summarize(count_med_consumption = n())
+
+#counting number of years with high energy consumption per capita
+prod_emissions_cat %>%
+  filter(total_primary_energy_cons_capita_cat == "high") %>%
+  summarize(count_high_consumption = n())
+```
+*Here we find there are 20 years with low CO2 emissions per capita, 20 years with medium CO2 emissions per capita, and 32 years with high CO2 emissions per capita. In this case, low is defined as below 300 Metric Tons CO2, high is defined as above 330 Metric Tons CO2, with medium falling in between those two groups.*
+
+## Part 5: Visualizations
+
+Overview: In this section, I will complete the following actions:
+
+* create a plot showing percentage of fossil fuels broken down by the different fossil fuel types over the years
+* create a plot showing total primary energy consumption versus production in the US over the years
+
+First is the plot of fossil fuel type productions as a percentage of total fossil fuel production over the years:
+```{r}
+
+#making the data non-tidy for the purposes of graphing
+prod_fossil <- 
+  prod_emissions_cat %>%
+  select(Year, Coal_Prod_pct_fuel, Natural_Gas_Prod_pct_fuel, Crude_Oil_Prod_pct_fuel, Natural_Gas_L_Prod_pct_fuel) %>%
+  rename("Coal" = "Coal_Prod_pct_fuel", 
+         "Natural Gas" = "Natural_Gas_Prod_pct_fuel", 
+         "Crude Oil" = "Crude_Oil_Prod_pct_fuel", 
+         "Liquefied Natural Gas" = "Natural_Gas_L_Prod_pct_fuel") %>%
+  pivot_longer(cols = c(`Coal`,`Natural Gas`, `Crude Oil`, `Liquefied Natural Gas`),
+               names_to = "Fossil_Fuel_Type",
+               values_to = "Pct_Fossil")
+  
+#creating a plot of % fossil fuel production over the years for the different fossil fuel types
+prod_fossil %>% 
+  ggplot(aes(x = as.numeric(Year), y = Pct_Fossil, color = Fossil_Fuel_Type)) +
+  geom_point()+
+  geom_line()+
+  labs(title = "Percent of Fossil Fuel Production, 1949-2020",
+       x = "Year",
+       y = "Percent of Total Fossil Fuel Production (in %)",
+       color = "Fossil Fuel")+
+  scale_x_continuous(breaks = seq(1945,2020, by = 5))+
+  theme_minimal()
+
+
+```
+
+*From the above plot, we find that overall coal and crude oil as a percentage of total fossil fuel production have decreased since 1949. Specifically, coal dipped around 1950-1972, peaked again in roughly 2005 then sharply dropped since then. Crude oil, on the other hand dropped steadily until 2010 when it had a sharp uptick until 2020, though not reaching its 1950 levels.*
+
+*Liquefied natural gas and standard natural gas have both increased as a percentage of total fossil fuel production. Specifically, natural gas increased until 1970, decreased from roughly 1970-1985, then has steadily grown since then. Liquefied natural gas production (as a percentage of total fossil fuel production) has slowly grown since 1949.*
+
+*This corroborates the hypotheses written in the introduction in which the cleaner-burning fossil fuels (the natural gases) would have increased percentage of production, while the less clean burning fossil fuels (coal) would have decreased percentage of production.*
+
+
+Then here is the graph of total energy consumption and production in the U.S. over the years 1949-2020: 
+```{r}
+#making the data non-tidy for the purposes of graphing
+prod_cons <- 
+  prod_emissions_cat %>%
+  select(Year, `Total Primary Energy Production`, `Total Primary Energy Consumption`) %>%
+  pivot_longer(cols = c("Total Primary Energy Production", "Total Primary Energy Consumption"),
+               names_to = "Production_or_Consumption",
+               values_to = "Energy_Amt") %>%
+  mutate("Energy_Amt" = round(as.numeric(Energy_Amt), 2))
+
+#creating a plot of total primary energy consumption and production in the US over the years
+prod_cons %>%
+  ggplot(aes(x = as.numeric(Year), y = Energy_Amt, fill = Production_or_Consumption)) +
+  geom_bar(stat = "identity", position = "dodge")+
+  labs(title = "Total Primary Energy Consumption and Production, 1949-2020",
+       x = "Year",
+       y = "Energy Amount (Quadrillion BTUs)",
+       fill = "Production or Consumption")+
+  scale_x_continuous(breaks = seq(1950,2020, by = 10))+
+  theme_minimal()
+```
+
+*From this visualization, we find that U.S. energy consumption and production have both grown between 1949 and 2020. However, total primary energy consumption has grown more quickly than total primary energy consumption for most of that period. We know this as production was greater than consumption in most of the years between roughly 1949-1959, but consumption was greater than production in most of the years since. It is interesting to note that in very recent years (2019-2020), however, that total primary energy production is once again superseding total primary energy consumption in the United States.*
+
+*This graph is interesting to note because it contextualizes the trends in carbon emissions in years with greater and less fossil and renewable energy production. For instance, we found that both renewable energy and fossil fuels had higher production in 2020 than 1970 despite 1970 having higher CO2 emissions per capita. This makes sense as this graph shows that energy production and consumption has grown from 1970 to 2020. Thus, even as emissions drop and the renewable energy sector grows, there is also overall more energy production (including fossils) to meet this growing energy demand.*

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Isabella Hsu" />
+    
+    <link rel="shortcut icon" type="image/x-icon" href="/img/favicon.ico">
+    <title>Energy Transition, Emissions, and Production</title>
+    <meta name="generator" content="Hugo 0.98.0" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="/css/main.css" />
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,400,200bold,400old" />
+    
+    <!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+			<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+		<![endif]-->
+
+    
+  </head>
+
+  <body>
+    <div id="wrap">
+      
+      <nav class="navbar navbar-default">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/"><i class="fa fa-home"></i></a>
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div class="navbar-collapse collapse" id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+      
+        
+        <li><a href="/post/">BLOG</a></li>
+        
+        <li><a href="/projects/">PROJECTS</a></li>
+        
+        <li><a href="/resume/">RESUME</a></li>
+        
+      
+      </ul>
+    </div>
+  </div>
+</nav>
+
+      <div class="container">
+        <div class="blog-post">
+          <h3>
+            <strong><a href="/project/project1/">Energy Transition, Emissions, and Production</a></strong>
+          </h3>
+        </div>
+ 
+<div class="blog-title">
+          <h4>
+         January 1, 0001 
+            &nbsp;&nbsp;
+            
+          </h4>
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-body">
+            <div class="blogpost">
+              
+
+
+<div id="part-1-introduction" class="section level2">
+<h2>Part 1: Introduction</h2>
+<p>The datasets in this report focus on energy production and emissions in the United States. Specifically, MER_T01_02 contains monthly and annual data regarding production of several different energy types, while MER_T01_07 contains annual data regarding various emissions measurements. Both datasets were published on eia.gov, which is the website for the U.S. Energy Information Administration.</p>
+<p>I chose these datasets because of my interest in the energy transition. I wanted to analyze how energy production has changed in regards to the types of energy produced and those effects on peak emissions. In particular, I expect to find that energy production for the most emissions-heavy sources has decreased as a percentage of total energy production. For the fossil fuels space, this would mean that coal has substantially decreased production as a percentage of total energy production, while things like liquefied natural gas and natural gas have seen an uptick. This also means that renewables would compose a greater percentage of total energy production. In regards to emissions, I hypothesize that emissions per capita has decreased in years with greater renewable energy production. However, it is possible this will not hold true if overall energy consumption per capita has substantially increased over the years, regardless of energy transition.</p>
+<pre class="r"><code>#uploading energy production data
+production &lt;- read.csv(&quot;MER_T01_02.csv&quot;)
+#uploading energy emissions data
+emissions &lt;- read.csv(&quot;MER_T01_07.csv&quot;)</code></pre>
+</div>
+<div id="part-2-tidying" class="section level2">
+<h2>Part 2: Tidying</h2>
+<p>Overview: In this section, I will tidy the data by completing the following actions:</p>
+<ul>
+<li>removing columns that represent the same information (MSN,Column_Order are coding and metadata representing the column Description, units may also be tied to each Description)</li>
+<li>giving each energy production type its own column in the production dataset</li>
+<li>giving each emissions data type its own column in the emissions dataset</li>
+<li>separating the month and year data</li>
+<li>keeping only the annual summaries for the production and emissions dataset.</li>
+</ul>
+<p>I will begin by loading necessary libraries.</p>
+<pre class="r"><code>#loading necessary libraries
+library(tidyverse)</code></pre>
+<pre><code>## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──</code></pre>
+<pre><code>## ✓ ggplot2 3.3.5     ✓ purrr   0.3.4
+## ✓ tibble  3.1.6     ✓ dplyr   1.0.7
+## ✓ tidyr   1.1.4     ✓ stringr 1.4.0
+## ✓ readr   2.1.1     ✓ forcats 0.5.1</code></pre>
+<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(ggplot2)
+library(stringr)</code></pre>
+<p>I will then examine both datasets to see their structures.</p>
+<pre class="r"><code>#viewing the datasets - production
+glimpse(production)</code></pre>
+<pre><code>## Rows: 8,567
+## Columns: 6
+## $ MSN          &lt;chr&gt; &quot;CLPRBUS&quot;, &quot;CLPRBUS&quot;, &quot;CLPRBUS&quot;, &quot;CLPRBUS&quot;, &quot;CLPRBUS&quot;, &quot;C…
+## $ YYYYMM       &lt;int&gt; 194913, 195013, 195113, 195213, 195313, 195413, 195513, 1…
+## $ Value        &lt;chr&gt; &quot;11.973882&quot;, &quot;14.060135&quot;, &quot;14.419325&quot;, &quot;12.734313&quot;, &quot;12.2…
+## $ Column_Order &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, …
+## $ Description  &lt;chr&gt; &quot;Coal Production&quot;, &quot;Coal Production&quot;, &quot;Coal Production&quot;, …
+## $ Unit         &lt;chr&gt; &quot;Quadrillion Btu&quot;, &quot;Quadrillion Btu&quot;, &quot;Quadrillion Btu&quot;, …</code></pre>
+<pre class="r"><code>#viewing the datasets - emissions
+glimpse(emissions)</code></pre>
+<pre><code>## Rows: 720
+## Columns: 6
+## $ MSN          &lt;chr&gt; &quot;TETCBUS&quot;, &quot;TETCBUS&quot;, &quot;TETCBUS&quot;, &quot;TETCBUS&quot;, &quot;TETCBUS&quot;, &quot;T…
+## $ YYYYMM       &lt;int&gt; 194913, 195013, 195113, 195213, 195313, 195413, 195513, 1…
+## $ Value        &lt;chr&gt; &quot;31.967775&quot;, &quot;34.598567&quot;, &quot;36.953661&quot;, &quot;36.726037&quot;, &quot;37.6…
+## $ Column_Order &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, …
+## $ Description  &lt;chr&gt; &quot;Total Primary Energy Consumption&quot;, &quot;Total Primary Energy…
+## $ Unit         &lt;chr&gt; &quot;Quadrillion Btu&quot;, &quot;Quadrillion Btu&quot;, &quot;Quadrillion Btu&quot;, …</code></pre>
+<p>Both the production and emissions have a “description” category representing different variables (e.g. coal production, natural gas production, etc for the production dataset and total primary energy consumption, energy expenditures, etc for the emissions dataset.) I will give each of these variables their own column.</p>
+<p>I will do this first for production:</p>
+<pre class="r"><code>#removing the MSN column and column_order because it is simply coding the description
+production &lt;- 
+  production %&gt;%
+  select(-MSN, -Column_Order) %&gt;%
+#removing the units because it is metadata for the variables (and same for all production)
+  select(-Unit) %&gt;%
+#giving each energy production type its own column
+  pivot_wider(names_from = Description,
+              values_from = Value)
+
+#checking out these updates
+production</code></pre>
+<pre><code>## # A tibble: 659 × 14
+##    YYYYMM `Coal Production` `Natural Gas (Dr… `Crude Oil Prod… `Natural Gas Pla…
+##     &lt;int&gt; &lt;chr&gt;             &lt;chr&gt;             &lt;chr&gt;            &lt;chr&gt;            
+##  1 194913 11.973882         5.377243          10.683252        0.706102         
+##  2 195013 14.060135         6.232975          11.446729        0.813366         
+##  3 195113 14.419325         7.415733          13.036724        0.910336         
+##  4 195213 12.734313         7.963599          13.281049        0.985701         
+##  5 195313 12.277746         8.338838          13.671076        1.050702         
+##  6 195413 10.542448         8.681785          13.42693         1.101065         
+##  7 195513 12.369608         9.344668          14.409682        1.222838         
+##  8 195613 13.306334         10.002147         15.180241        1.264288         
+##  9 195713 13.061393         10.605254         15.178026        1.273767         
+## 10 195813 10.783088         10.942235         14.204125        1.275674         
+## # … with 649 more rows, and 9 more variables:
+## #   Total Fossil Fuels Production &lt;chr&gt;,
+## #   Nuclear Electric Power Production &lt;chr&gt;,
+## #   Hydroelectric Power Production &lt;chr&gt;, Geothermal Energy Production &lt;chr&gt;,
+## #   Solar Energy Production &lt;chr&gt;, Wind Energy Production &lt;chr&gt;,
+## #   Biomass Energy Production &lt;chr&gt;, Total Renewable Energy Production &lt;chr&gt;,
+## #   Total Primary Energy Production &lt;chr&gt;</code></pre>
+<p>I will then do this for emissions:</p>
+<pre class="r"><code>#removing the MSN column and column_order because it is simply coding the description
+emissions &lt;-
+  emissions %&gt;%
+  select(-MSN, -Column_Order) %&gt;%
+#removing the units too because they are tied to each variable
+  select(-Unit) %&gt;%
+#giving each energy production type its own column
+  pivot_wider(names_from = Description,
+              values_from = Value) 
+
+#checking out these updates
+emissions</code></pre>
+<pre><code>## # A tibble: 72 × 11
+##    YYYYMM `Total Primary E… `Total Primary E… `Total Primary E… `Energy Expendi…
+##     &lt;int&gt; &lt;chr&gt;             &lt;chr&gt;             &lt;chr&gt;             &lt;chr&gt;           
+##  1 194913 31.967775         214               15.18             Not Available   
+##  2 195013 34.598567         227               15.11             Not Available   
+##  3 195113 36.953661         239               14.94             Not Available   
+##  4 195213 36.726037         233               14.26             Not Available   
+##  5 195313 37.640598         235               13.96             Not Available   
+##  6 195413 36.61354          225               13.66             Not Available   
+##  7 195513 40.178285         242               13.99             Not Available   
+##  8 195613 41.721757         247               14.23             Not Available   
+##  9 195713 41.753909         243               13.95             Not Available   
+## 10 195813 41.60928          238               14                Not Available   
+## # … with 62 more rows, and 6 more variables:
+## #   Energy Expenditures per Capita &lt;chr&gt;,
+## #   Energy Expenditures as Share of GDP &lt;chr&gt;,
+## #   Energy Expenditures as Share of Gross Output &lt;chr&gt;,
+## #   Total Energy CO2 Emissions &lt;chr&gt;,
+## #   Total Energy CO2 Emissions per Capita &lt;chr&gt;,
+## #   Total Energy CO2 Emissions per Real Dollar of GDP &lt;chr&gt;</code></pre>
+<p>I now want to separate the YYYMM column into year and month for both the production and emissions datasets.</p>
+<pre class="r"><code>#separating year and month in production dataset
+production &lt;- production %&gt;% 
+  separate(YYYYMM, into = c(&quot;Year&quot;, &quot;Month&quot;), sep =4)
+
+#viewing changes
+production</code></pre>
+<pre><code>## # A tibble: 659 × 15
+##    Year  Month `Coal Production` `Natural Gas (Dry) Production` `Crude Oil Prod…
+##    &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;             &lt;chr&gt;                          &lt;chr&gt;           
+##  1 1949  13    11.973882         5.377243                       10.683252       
+##  2 1950  13    14.060135         6.232975                       11.446729       
+##  3 1951  13    14.419325         7.415733                       13.036724       
+##  4 1952  13    12.734313         7.963599                       13.281049       
+##  5 1953  13    12.277746         8.338838                       13.671076       
+##  6 1954  13    10.542448         8.681785                       13.42693        
+##  7 1955  13    12.369608         9.344668                       14.409682       
+##  8 1956  13    13.306334         10.002147                      15.180241       
+##  9 1957  13    13.061393         10.605254                      15.178026       
+## 10 1958  13    10.783088         10.942235                      14.204125       
+## # … with 649 more rows, and 10 more variables:
+## #   Natural Gas Plant Liquids Production &lt;chr&gt;,
+## #   Total Fossil Fuels Production &lt;chr&gt;,
+## #   Nuclear Electric Power Production &lt;chr&gt;,
+## #   Hydroelectric Power Production &lt;chr&gt;, Geothermal Energy Production &lt;chr&gt;,
+## #   Solar Energy Production &lt;chr&gt;, Wind Energy Production &lt;chr&gt;,
+## #   Biomass Energy Production &lt;chr&gt;, Total Renewable Energy Production &lt;chr&gt;, …</code></pre>
+<pre class="r"><code>#separating year and month in emissions dataset
+emissions &lt;- emissions %&gt;% 
+  separate(YYYYMM, into = c(&quot;Year&quot;, &quot;Month&quot;), sep =4)
+
+#viewing changes
+emissions</code></pre>
+<pre><code>## # A tibble: 72 × 12
+##    Year  Month `Total Primary Ener… `Total Primary Energ… `Total Primary Energy…
+##    &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;                &lt;chr&gt;                 &lt;chr&gt;                 
+##  1 1949  13    31.967775            214                   15.18                 
+##  2 1950  13    34.598567            227                   15.11                 
+##  3 1951  13    36.953661            239                   14.94                 
+##  4 1952  13    36.726037            233                   14.26                 
+##  5 1953  13    37.640598            235                   13.96                 
+##  6 1954  13    36.61354             225                   13.66                 
+##  7 1955  13    40.178285            242                   13.99                 
+##  8 1956  13    41.721757            247                   14.23                 
+##  9 1957  13    41.753909            243                   13.95                 
+## 10 1958  13    41.60928             238                   14                    
+## # … with 62 more rows, and 7 more variables: Energy Expenditures &lt;chr&gt;,
+## #   Energy Expenditures per Capita &lt;chr&gt;,
+## #   Energy Expenditures as Share of GDP &lt;chr&gt;,
+## #   Energy Expenditures as Share of Gross Output &lt;chr&gt;,
+## #   Total Energy CO2 Emissions &lt;chr&gt;,
+## #   Total Energy CO2 Emissions per Capita &lt;chr&gt;,
+## #   Total Energy CO2 Emissions per Real Dollar of GDP &lt;chr&gt;</code></pre>
+<p>The production dataset contains both annual and monthly data, while the emissions data only contains annual. Therefore, I will keep only the annual data in the production dataset.</p>
+<pre class="r"><code>#filtering for only month 13 (annual data) in production dataset
+production &lt;- production %&gt;%
+  filter(Month == &quot;13&quot;)
+
+#viewing changes
+head(production)</code></pre>
+<pre><code>## # A tibble: 6 × 15
+##   Year  Month `Coal Production` `Natural Gas (Dry) Production` `Crude Oil Produ…
+##   &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;             &lt;chr&gt;                          &lt;chr&gt;            
+## 1 1949  13    11.973882         5.377243                       10.683252        
+## 2 1950  13    14.060135         6.232975                       11.446729        
+## 3 1951  13    14.419325         7.415733                       13.036724        
+## 4 1952  13    12.734313         7.963599                       13.281049        
+## 5 1953  13    12.277746         8.338838                       13.671076        
+## 6 1954  13    10.542448         8.681785                       13.42693         
+## # … with 10 more variables: Natural Gas Plant Liquids Production &lt;chr&gt;,
+## #   Total Fossil Fuels Production &lt;chr&gt;,
+## #   Nuclear Electric Power Production &lt;chr&gt;,
+## #   Hydroelectric Power Production &lt;chr&gt;, Geothermal Energy Production &lt;chr&gt;,
+## #   Solar Energy Production &lt;chr&gt;, Wind Energy Production &lt;chr&gt;,
+## #   Biomass Energy Production &lt;chr&gt;, Total Renewable Energy Production &lt;chr&gt;,
+## #   Total Primary Energy Production &lt;chr&gt;</code></pre>
+<p>Because I am keeping only the annual data, I can remove the month column for both datasets since all simply say “13”, the code for annual data.</p>
+<pre class="r"><code>#removing month for production
+production &lt;- production %&gt;% 
+  select(-Month)
+#viewing changes
+glimpse(production)</code></pre>
+<pre><code>## Rows: 72
+## Columns: 14
+## $ Year                                   &lt;chr&gt; &quot;1949&quot;, &quot;1950&quot;, &quot;1951&quot;, &quot;1952&quot;,…
+## $ `Coal Production`                      &lt;chr&gt; &quot;11.973882&quot;, &quot;14.060135&quot;, &quot;14.4…
+## $ `Natural Gas (Dry) Production`         &lt;chr&gt; &quot;5.377243&quot;, &quot;6.232975&quot;, &quot;7.4157…
+## $ `Crude Oil Production`                 &lt;chr&gt; &quot;10.683252&quot;, &quot;11.446729&quot;, &quot;13.0…
+## $ `Natural Gas Plant Liquids Production` &lt;chr&gt; &quot;0.706102&quot;, &quot;0.813366&quot;, &quot;0.9103…
+## $ `Total Fossil Fuels Production`        &lt;chr&gt; &quot;28.740479&quot;, &quot;32.553205&quot;, &quot;35.7…
+## $ `Nuclear Electric Power Production`    &lt;chr&gt; &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;…
+## $ `Hydroelectric Power Production`       &lt;chr&gt; &quot;1.424722&quot;, &quot;1.415411&quot;, &quot;1.4237…
+## $ `Geothermal Energy Production`         &lt;chr&gt; &quot;Not Available&quot;, &quot;Not Available…
+## $ `Solar Energy Production`              &lt;chr&gt; &quot;Not Available&quot;, &quot;Not Available…
+## $ `Wind Energy Production`               &lt;chr&gt; &quot;Not Available&quot;, &quot;Not Available…
+## $ `Biomass Energy Production`            &lt;chr&gt; &quot;1.549262&quot;, &quot;1.562307&quot;, &quot;1.5346…
+## $ `Total Renewable Energy Production`    &lt;chr&gt; &quot;2.973984&quot;, &quot;2.977718&quot;, &quot;2.9584…
+## $ `Total Primary Energy Production`      &lt;chr&gt; &quot;31.714463&quot;, &quot;35.530922&quot;, &quot;38.7…</code></pre>
+<pre class="r"><code>#removing month for emissions
+emissions &lt;- emissions %&gt;% 
+  select(-Month)
+#viewing changes
+glimpse(emissions)</code></pre>
+<pre><code>## Rows: 72
+## Columns: 11
+## $ Year                                                      &lt;chr&gt; &quot;1949&quot;, &quot;195…
+## $ `Total Primary Energy Consumption`                        &lt;chr&gt; &quot;31.967775&quot;,…
+## $ `Total Primary Energy Consumption per Capita`             &lt;chr&gt; &quot;214&quot;, &quot;227&quot;…
+## $ `Total Primary Energy Consumption per Real Dollar of GDP` &lt;chr&gt; &quot;15.18&quot;, &quot;15…
+## $ `Energy Expenditures`                                     &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures per Capita`                          &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures as Share of GDP`                     &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures as Share of Gross Output`            &lt;chr&gt; &quot;Not Availab…
+## $ `Total Energy CO2 Emissions`                              &lt;chr&gt; &quot;2206.691&quot;, …
+## $ `Total Energy CO2 Emissions per Capita`                   &lt;chr&gt; &quot;14.8&quot;, &quot;15.…
+## $ `Total Energy CO2 Emissions per Real Dollar of GDP`       &lt;chr&gt; &quot;1048&quot;, &quot;104…</code></pre>
+</div>
+<div id="part-3-joining-merging" class="section level2">
+<h2>Part 3: Joining &amp; Merging</h2>
+<p>Overview: In this section, I will complete the following actions:</p>
+<ul>
+<li>Analyze the number of observations, unique observations, and observations that appear in one dataset but not the other</li>
+<li>Join the two datasets together</li>
+</ul>
+<p>I will first examine our data before joining.</p>
+<pre class="r"><code>#looking at production data
+glimpse(production)</code></pre>
+<pre><code>## Rows: 72
+## Columns: 14
+## $ Year                                   &lt;chr&gt; &quot;1949&quot;, &quot;1950&quot;, &quot;1951&quot;, &quot;1952&quot;,…
+## $ `Coal Production`                      &lt;chr&gt; &quot;11.973882&quot;, &quot;14.060135&quot;, &quot;14.4…
+## $ `Natural Gas (Dry) Production`         &lt;chr&gt; &quot;5.377243&quot;, &quot;6.232975&quot;, &quot;7.4157…
+## $ `Crude Oil Production`                 &lt;chr&gt; &quot;10.683252&quot;, &quot;11.446729&quot;, &quot;13.0…
+## $ `Natural Gas Plant Liquids Production` &lt;chr&gt; &quot;0.706102&quot;, &quot;0.813366&quot;, &quot;0.9103…
+## $ `Total Fossil Fuels Production`        &lt;chr&gt; &quot;28.740479&quot;, &quot;32.553205&quot;, &quot;35.7…
+## $ `Nuclear Electric Power Production`    &lt;chr&gt; &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;0&quot;, &quot;…
+## $ `Hydroelectric Power Production`       &lt;chr&gt; &quot;1.424722&quot;, &quot;1.415411&quot;, &quot;1.4237…
+## $ `Geothermal Energy Production`         &lt;chr&gt; &quot;Not Available&quot;, &quot;Not Available…
+## $ `Solar Energy Production`              &lt;chr&gt; &quot;Not Available&quot;, &quot;Not Available…
+## $ `Wind Energy Production`               &lt;chr&gt; &quot;Not Available&quot;, &quot;Not Available…
+## $ `Biomass Energy Production`            &lt;chr&gt; &quot;1.549262&quot;, &quot;1.562307&quot;, &quot;1.5346…
+## $ `Total Renewable Energy Production`    &lt;chr&gt; &quot;2.973984&quot;, &quot;2.977718&quot;, &quot;2.9584…
+## $ `Total Primary Energy Production`      &lt;chr&gt; &quot;31.714463&quot;, &quot;35.530922&quot;, &quot;38.7…</code></pre>
+<pre class="r"><code>#number of unique IDs
+production %&gt;%
+  summarize(no_unique_IDs = n_distinct(Year))</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   no_unique_IDs
+##           &lt;int&gt;
+## 1            72</code></pre>
+<pre class="r"><code>#looking at emissions data
+glimpse(emissions)</code></pre>
+<pre><code>## Rows: 72
+## Columns: 11
+## $ Year                                                      &lt;chr&gt; &quot;1949&quot;, &quot;195…
+## $ `Total Primary Energy Consumption`                        &lt;chr&gt; &quot;31.967775&quot;,…
+## $ `Total Primary Energy Consumption per Capita`             &lt;chr&gt; &quot;214&quot;, &quot;227&quot;…
+## $ `Total Primary Energy Consumption per Real Dollar of GDP` &lt;chr&gt; &quot;15.18&quot;, &quot;15…
+## $ `Energy Expenditures`                                     &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures per Capita`                          &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures as Share of GDP`                     &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures as Share of Gross Output`            &lt;chr&gt; &quot;Not Availab…
+## $ `Total Energy CO2 Emissions`                              &lt;chr&gt; &quot;2206.691&quot;, …
+## $ `Total Energy CO2 Emissions per Capita`                   &lt;chr&gt; &quot;14.8&quot;, &quot;15.…
+## $ `Total Energy CO2 Emissions per Real Dollar of GDP`       &lt;chr&gt; &quot;1048&quot;, &quot;104…</code></pre>
+<pre class="r"><code>#number of unique IDs
+emissions %&gt;%
+  summarize(no_unique_IDs = n_distinct(Year))</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   no_unique_IDs
+##           &lt;int&gt;
+## 1            72</code></pre>
+<pre class="r"><code>#number of IDs in one dataset but not the other
+anti_join(production, emissions, key = &quot;Year&quot;)</code></pre>
+<pre><code>## Joining, by = &quot;Year&quot;</code></pre>
+<pre><code>## # A tibble: 0 × 14
+## # … with 14 variables: Year &lt;chr&gt;, Coal Production &lt;chr&gt;,
+## #   Natural Gas (Dry) Production &lt;chr&gt;, Crude Oil Production &lt;chr&gt;,
+## #   Natural Gas Plant Liquids Production &lt;chr&gt;,
+## #   Total Fossil Fuels Production &lt;chr&gt;,
+## #   Nuclear Electric Power Production &lt;chr&gt;,
+## #   Hydroelectric Power Production &lt;chr&gt;, Geothermal Energy Production &lt;chr&gt;,
+## #   Solar Energy Production &lt;chr&gt;, Wind Energy Production &lt;chr&gt;, …</code></pre>
+<p><em>Please note that there are currently 72 observations in each dataset. Each also contains 72 unique ID variables, and there are no (0) IDs that appear in one dataset but not the other.</em></p>
+<p>I will now join the two cleaned datasets. I used a full join to include all the variables from both datasets.</p>
+<pre class="r"><code>prod_emissions &lt;- 
+  full_join(production, emissions, by = &quot;Year&quot;)
+
+#examining joined dataset
+prod_emissions</code></pre>
+<pre><code>## # A tibble: 72 × 24
+##    Year  `Coal Production` `Natural Gas (Dr… `Crude Oil Produ… `Natural Gas Pla…
+##    &lt;chr&gt; &lt;chr&gt;             &lt;chr&gt;             &lt;chr&gt;             &lt;chr&gt;            
+##  1 1949  11.973882         5.377243          10.683252         0.706102         
+##  2 1950  14.060135         6.232975          11.446729         0.813366         
+##  3 1951  14.419325         7.415733          13.036724         0.910336         
+##  4 1952  12.734313         7.963599          13.281049         0.985701         
+##  5 1953  12.277746         8.338838          13.671076         1.050702         
+##  6 1954  10.542448         8.681785          13.42693          1.101065         
+##  7 1955  12.369608         9.344668          14.409682         1.222838         
+##  8 1956  13.306334         10.002147         15.180241         1.264288         
+##  9 1957  13.061393         10.605254         15.178026         1.273767         
+## 10 1958  10.783088         10.942235         14.204125         1.275674         
+## # … with 62 more rows, and 19 more variables:
+## #   Total Fossil Fuels Production &lt;chr&gt;,
+## #   Nuclear Electric Power Production &lt;chr&gt;,
+## #   Hydroelectric Power Production &lt;chr&gt;, Geothermal Energy Production &lt;chr&gt;,
+## #   Solar Energy Production &lt;chr&gt;, Wind Energy Production &lt;chr&gt;,
+## #   Biomass Energy Production &lt;chr&gt;, Total Renewable Energy Production &lt;chr&gt;,
+## #   Total Primary Energy Production &lt;chr&gt;, …</code></pre>
+<pre class="r"><code>dim(prod_emissions)</code></pre>
+<pre><code>## [1] 72 24</code></pre>
+<p><em>This new dataset did not drop any observations/rows when joining the datasets. Because both datasets used the years 1949-2020 as their IDs, all the data in both datasets were kept. Thus, the joining process should not pose any issues.</em></p>
+<p><em>Note, however, that this clean joining process occurred only because of the cleaning process and serendipity. I had already removed the monthly data from the production dataset, meaning each dataset had only one unique year key on which to match, and both datasets happened to cover the same timespan.</em></p>
+</div>
+<div id="part-4-data-wrangling" class="section level2">
+<h2>Part 4: Data Wrangling</h2>
+<p>Overview: In this section, I will wrangle the data by completing the following actions:</p>
+<p><strong>Mutate</strong></p>
+<ul>
+<li>creating a variable that delineates production of each fossil fuel energy type as a percentage of total fossil fuels production</li>
+<li>creating a variable that represents the decade for that observation</li>
+</ul>
+<p><strong>Group By/Summarize/Arrange</strong></p>
+<ul>
+<li>finding the decades with the highest and lowest average annual CO2 emissions respectively</li>
+</ul>
+<p><strong>Summary Statistics - Filter/Select</strong></p>
+<ul>
+<li>finding the average annual renewable and fossil fuels production in the decades of highest and lowest average annual CO2 emissions respectively</li>
+<li>creating a categorical variable for high, low, and medium primary energy consumption per capita and finding the frequency of each</li>
+</ul>
+<p>First I will create the necessary variables for future graphs and analyses.</p>
+<pre class="r"><code>#creating a variable finding % of each energy type 
+#using mutate function
+prod_emissions_pct &lt;- prod_emissions %&gt;%
+  rename(&quot;Coal_Prod&quot; = &quot;Coal Production&quot;,
+         &quot;Natural_Gas_Prod&quot; = &quot;Natural Gas (Dry) Production&quot;,
+         &quot;Crude_Oil_Prod&quot; = &quot;Crude Oil Production&quot;,
+         &quot;Natural_Gas_L_Prod&quot; = &quot;Natural Gas Plant Liquids Production&quot;,
+         &quot;Total_Fossil_Prod&quot; = &quot;Total Fossil Fuels Production&quot;) %&gt;%
+  mutate_at(2:5, funs(pct_fuel = (as.numeric(.)/as.numeric(Total_Fossil_Prod)*100)))</code></pre>
+<pre><code>## Warning: `funs()` was deprecated in dplyr 0.8.0.
+## Please use a list of either functions or lambdas: 
+## 
+##   # Simple named list: 
+##   list(mean = mean, median = median)
+## 
+##   # Auto named with `tibble::lst()`: 
+##   tibble::lst(mean, median)
+## 
+##   # Using lambdas
+##   list(~ mean(., trim = .2), ~ median(., na.rm = TRUE))
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.</code></pre>
+<pre class="r"><code>#creating a variable with decade
+prod_emissions_pct &lt;- 
+  prod_emissions_pct %&gt;%
+  mutate(Decade = as.numeric(Year) - as.numeric(str_sub(Year, -1, -1)))
+
+#viewing
+glimpse(prod_emissions_pct)</code></pre>
+<pre><code>## Rows: 72
+## Columns: 29
+## $ Year                                                      &lt;chr&gt; &quot;1949&quot;, &quot;195…
+## $ Coal_Prod                                                 &lt;chr&gt; &quot;11.973882&quot;,…
+## $ Natural_Gas_Prod                                          &lt;chr&gt; &quot;5.377243&quot;, …
+## $ Crude_Oil_Prod                                            &lt;chr&gt; &quot;10.683252&quot;,…
+## $ Natural_Gas_L_Prod                                        &lt;chr&gt; &quot;0.706102&quot;, …
+## $ Total_Fossil_Prod                                         &lt;chr&gt; &quot;28.740479&quot;,…
+## $ `Nuclear Electric Power Production`                       &lt;chr&gt; &quot;0&quot;, &quot;0&quot;, &quot;0…
+## $ `Hydroelectric Power Production`                          &lt;chr&gt; &quot;1.424722&quot;, …
+## $ `Geothermal Energy Production`                            &lt;chr&gt; &quot;Not Availab…
+## $ `Solar Energy Production`                                 &lt;chr&gt; &quot;Not Availab…
+## $ `Wind Energy Production`                                  &lt;chr&gt; &quot;Not Availab…
+## $ `Biomass Energy Production`                               &lt;chr&gt; &quot;1.549262&quot;, …
+## $ `Total Renewable Energy Production`                       &lt;chr&gt; &quot;2.973984&quot;, …
+## $ `Total Primary Energy Production`                         &lt;chr&gt; &quot;31.714463&quot;,…
+## $ `Total Primary Energy Consumption`                        &lt;chr&gt; &quot;31.967775&quot;,…
+## $ `Total Primary Energy Consumption per Capita`             &lt;chr&gt; &quot;214&quot;, &quot;227&quot;…
+## $ `Total Primary Energy Consumption per Real Dollar of GDP` &lt;chr&gt; &quot;15.18&quot;, &quot;15…
+## $ `Energy Expenditures`                                     &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures per Capita`                          &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures as Share of GDP`                     &lt;chr&gt; &quot;Not Availab…
+## $ `Energy Expenditures as Share of Gross Output`            &lt;chr&gt; &quot;Not Availab…
+## $ `Total Energy CO2 Emissions`                              &lt;chr&gt; &quot;2206.691&quot;, …
+## $ `Total Energy CO2 Emissions per Capita`                   &lt;chr&gt; &quot;14.8&quot;, &quot;15.…
+## $ `Total Energy CO2 Emissions per Real Dollar of GDP`       &lt;chr&gt; &quot;1048&quot;, &quot;104…
+## $ Coal_Prod_pct_fuel                                        &lt;dbl&gt; 41.66208, 43…
+## $ Natural_Gas_Prod_pct_fuel                                 &lt;dbl&gt; 18.70965, 19…
+## $ Crude_Oil_Prod_pct_fuel                                   &lt;dbl&gt; 37.17145, 35…
+## $ Natural_Gas_L_Prod_pct_fuel                               &lt;dbl&gt; 2.456821, 2.…
+## $ Decade                                                    &lt;dbl&gt; 1940, 1950, …</code></pre>
+<p>I will then find the decades with the highest and lowest annual average CO2 emissions.</p>
+<pre class="r"><code>#FINDING MIN/MAX DECADES OF EMISSIONS
+#finding decade with highest and lowest annual avg CO2 emissions 
+decade_emissions &lt;- prod_emissions_pct %&gt;% 
+  rename(&quot;Total_CO2_Emissions_Capita&quot; = &quot;Total Energy CO2 Emissions per Capita&quot;) %&gt;%
+  group_by(Decade) %&gt;%
+  summarize(Av_Decade_CO2_Capita = mean(as.numeric(Total_CO2_Emissions_Capita)))
+
+#lowest decade for avg yearly CO2 emissions per capita
+decade_emissions %&gt;%
+  arrange(Av_Decade_CO2_Capita) %&gt;%
+  slice(n=1)</code></pre>
+<pre><code>## # A tibble: 1 × 2
+##   Decade Av_Decade_CO2_Capita
+##    &lt;dbl&gt;                &lt;dbl&gt;
+## 1   2020                 13.9</code></pre>
+<pre class="r"><code>#highest decade for avg yearly CO2 emissions per capita 
+decade_emissions %&gt;% 
+ arrange(desc(Av_Decade_CO2_Capita)) %&gt;%
+ slice(n=1)</code></pre>
+<pre><code>## # A tibble: 1 × 2
+##   Decade Av_Decade_CO2_Capita
+##    &lt;dbl&gt;                &lt;dbl&gt;
+## 1   1970                 21.5</code></pre>
+<p><em>From this we find that the decade with the lowest average yearly CO2 emissions per capita is 2020 and the highest was 1970.</em></p>
+<p>These decades are applied to help us filter our data and find the average yearly renewable energy production and average yearly fossil fuel production in the decades with the highest and lowest annual average CO2 emissions.</p>
+<pre class="r"><code>#SUMMARY STATISTICS - NUMERICAL
+#finding mean renewable/fossil energy in the decades with highest/lowest avg yearly CO2 emissions per capita
+
+#mean yrly renewable energy production in 2020 decade 
+prod_emissions_pct %&gt;% 
+  filter(Decade == 2020) %&gt;%
+  select(&quot;Total Renewable Energy Production&quot;) %&gt;%
+  rename(&quot;Renewable_Prod&quot; = &quot;Total Renewable Energy Production&quot;) %&gt;%
+  summarize(mean_renewable = mean(as.numeric(Renewable_Prod)))</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   mean_renewable
+##            &lt;dbl&gt;
+## 1           11.7</code></pre>
+<pre class="r"><code>#mean yrly renewable energy production in 1970 decade
+prod_emissions_pct %&gt;% 
+  filter(Decade == 1970) %&gt;%
+  select(&quot;Total Renewable Energy Production&quot;) %&gt;%
+  rename(&quot;Renewable_Prod&quot; = &quot;Total Renewable Energy Production&quot;) %&gt;%
+  summarize(mean_renewable = mean(as.numeric(Renewable_Prod)))</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   mean_renewable
+##            &lt;dbl&gt;
+## 1           4.56</code></pre>
+<pre class="r"><code>#mean yrly fossil fuel production in 2020 decade
+prod_emissions_pct %&gt;% 
+  filter(Decade == 2020) %&gt;%
+  select(&quot;Total_Fossil_Prod&quot;) %&gt;%
+  summarize(mean_fossil = mean(as.numeric(Total_Fossil_Prod)))</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   mean_fossil
+##         &lt;dbl&gt;
+## 1        75.7</code></pre>
+<pre class="r"><code>#mean yrly fossil fuel production in 1970 decade
+prod_emissions_pct %&gt;% 
+  filter(Decade == 1970) %&gt;%
+  select(&quot;Total_Fossil_Prod&quot;) %&gt;%
+  summarize(mean_fossil = mean(as.numeric(Total_Fossil_Prod)))</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   mean_fossil
+##         &lt;dbl&gt;
+## 1        56.8</code></pre>
+<p><em>In the decade with the lowest CO2 emissions per capita (2020), mean annual renewable production was 11.66 Quadrillion BTU, while it was only 4.56 Quadrillion BTU in the decade with the highest CO2 emissions per capita (1970). Fossil fuel, however, was also higher in the decade with the lowest CO2 emissions per capita (2020) at 75.73 Quadrillion BTU compared to only 56.80 Quadrillion BTU in the decade with the highest CO2 emissions per capita (1970).</em></p>
+<p>For our categorical analysis, I created a categorical variable delineating low, medium, and high primary energy consumption and determined how many years fell into each of those categories.</p>
+<pre class="r"><code>#SUMMARY STATISTICS - CATEGORICAL
+#creating a categorical variable for primary energy consumption per capita - low, med, high
+prod_emissions_cat &lt;- 
+  prod_emissions_pct %&gt;%
+  rename(&quot;Primary_Energy_Cons_Cap&quot; = &quot;Total Primary Energy Consumption per Capita&quot;) %&gt;%
+  mutate(total_primary_energy_cons_capita_cat = ifelse(as.numeric(Primary_Energy_Cons_Cap) &lt; 300, &quot;low&quot;,
+        ifelse(as.numeric(Primary_Energy_Cons_Cap) &gt; 330, &quot;high&quot;, &quot;medium&quot;)))
+  
+#counting number of years with low energy consumption per capita
+prod_emissions_cat %&gt;%
+  filter(total_primary_energy_cons_capita_cat == &quot;low&quot;) %&gt;%
+  summarize(count_low_consumption = n())</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   count_low_consumption
+##                   &lt;int&gt;
+## 1                    20</code></pre>
+<pre class="r"><code>#counting number of years with medium energy consumption per capita
+prod_emissions_cat %&gt;%
+  filter(total_primary_energy_cons_capita_cat == &quot;medium&quot;) %&gt;%
+  summarize(count_med_consumption = n())</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   count_med_consumption
+##                   &lt;int&gt;
+## 1                    20</code></pre>
+<pre class="r"><code>#counting number of years with high energy consumption per capita
+prod_emissions_cat %&gt;%
+  filter(total_primary_energy_cons_capita_cat == &quot;high&quot;) %&gt;%
+  summarize(count_high_consumption = n())</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##   count_high_consumption
+##                    &lt;int&gt;
+## 1                     32</code></pre>
+<p><em>Here we find there are 20 years with low CO2 emissions per capita, 20 years with medium CO2 emissions per capita, and 32 years with high CO2 emissions per capita. In this case, low is defined as below 300 Metric Tons CO2, high is defined as above 330 Metric Tons CO2, with medium falling in between those two groups.</em></p>
+</div>
+<div id="part-5-visualizations" class="section level2">
+<h2>Part 5: Visualizations</h2>
+<p>Overview: In this section, I will complete the following actions:</p>
+<ul>
+<li>create a plot showing percentage of fossil fuels broken down by the different fossil fuel types over the years</li>
+<li>create a plot showing total primary energy consumption versus production in the US over the years</li>
+</ul>
+<p>First is the plot of fossil fuel type productions as a percentage of total fossil fuel production over the years:</p>
+<pre class="r"><code>#making the data non-tidy for the purposes of graphing
+prod_fossil &lt;- 
+  prod_emissions_cat %&gt;%
+  select(Year, Coal_Prod_pct_fuel, Natural_Gas_Prod_pct_fuel, Crude_Oil_Prod_pct_fuel, Natural_Gas_L_Prod_pct_fuel) %&gt;%
+  rename(&quot;Coal&quot; = &quot;Coal_Prod_pct_fuel&quot;, 
+         &quot;Natural Gas&quot; = &quot;Natural_Gas_Prod_pct_fuel&quot;, 
+         &quot;Crude Oil&quot; = &quot;Crude_Oil_Prod_pct_fuel&quot;, 
+         &quot;Liquefied Natural Gas&quot; = &quot;Natural_Gas_L_Prod_pct_fuel&quot;) %&gt;%
+  pivot_longer(cols = c(`Coal`,`Natural Gas`, `Crude Oil`, `Liquefied Natural Gas`),
+               names_to = &quot;Fossil_Fuel_Type&quot;,
+               values_to = &quot;Pct_Fossil&quot;)
+  
+#creating a plot of % fossil fuel production over the years for the different fossil fuel types
+prod_fossil %&gt;% 
+  ggplot(aes(x = as.numeric(Year), y = Pct_Fossil, color = Fossil_Fuel_Type)) +
+  geom_point()+
+  geom_line()+
+  labs(title = &quot;Percent of Fossil Fuel Production, 1949-2020&quot;,
+       x = &quot;Year&quot;,
+       y = &quot;Percent of Total Fossil Fuel Production (in %)&quot;,
+       color = &quot;Fossil Fuel&quot;)+
+  scale_x_continuous(breaks = seq(1945,2020, by = 5))+
+  theme_minimal()</code></pre>
+<p><img src="/project/project1_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<p><em>From the above plot, we find that overall coal and crude oil as a percentage of total fossil fuel production have decreased since 1949. Specifically, coal dipped around 1950-1972, peaked again in roughly 2005 then sharply dropped since then. Crude oil, on the other hand dropped steadily until 2010 when it had a sharp uptick until 2020, though not reaching its 1950 levels.</em></p>
+<p><em>Liquefied natural gas and standard natural gas have both increased as a percentage of total fossil fuel production. Specifically, natural gas increased until 1970, decreased from roughly 1970-1985, then has steadily grown since then. Liquefied natural gas production (as a percentage of total fossil fuel production) has slowly grown since 1949.</em></p>
+<p><em>This corroborates the hypotheses written in the introduction in which the cleaner-burning fossil fuels (the natural gases) would have increased percentage of production, while the less clean burning fossil fuels (coal) would have decreased percentage of production.</em></p>
+<p>Then here is the graph of total energy consumption and production in the U.S. over the years 1949-2020:</p>
+<pre class="r"><code>#making the data non-tidy for the purposes of graphing
+prod_cons &lt;- 
+  prod_emissions_cat %&gt;%
+  select(Year, `Total Primary Energy Production`, `Total Primary Energy Consumption`) %&gt;%
+  pivot_longer(cols = c(&quot;Total Primary Energy Production&quot;, &quot;Total Primary Energy Consumption&quot;),
+               names_to = &quot;Production_or_Consumption&quot;,
+               values_to = &quot;Energy_Amt&quot;) %&gt;%
+  mutate(&quot;Energy_Amt&quot; = round(as.numeric(Energy_Amt), 2))
+
+#creating a plot of total primary energy consumption and production in the US over the years
+prod_cons %&gt;%
+  ggplot(aes(x = as.numeric(Year), y = Energy_Amt, fill = Production_or_Consumption)) +
+  geom_bar(stat = &quot;identity&quot;, position = &quot;dodge&quot;)+
+  labs(title = &quot;Total Primary Energy Consumption and Production, 1949-2020&quot;,
+       x = &quot;Year&quot;,
+       y = &quot;Energy Amount (Quadrillion BTUs)&quot;,
+       fill = &quot;Production or Consumption&quot;)+
+  scale_x_continuous(breaks = seq(1950,2020, by = 10))+
+  theme_minimal()</code></pre>
+<p><img src="/project/project1_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p><em>From this visualization, we find that U.S. energy consumption and production have both grown between 1949 and 2020. However, total primary energy consumption has grown more quickly than total primary energy consumption for most of that period. We know this as production was greater than consumption in most of the years between roughly 1949-1959, but consumption was greater than production in most of the years since. It is interesting to note that in very recent years (2019-2020), however, that total primary energy production is once again superseding total primary energy consumption in the United States.</em></p>
+<p><em>This graph is interesting to note because it contextualizes the trends in carbon emissions in years with greater and less fossil and renewable energy production. For instance, we found that both renewable energy and fossil fuels had higher production in 2020 than 1970 despite 1970 having higher CO2 emissions per capita. This makes sense as this graph shows that energy production and consumption has grown from 1970 to 2020. Thus, even as emissions drop and the renewable energy sector grows, there is also overall more energy production (including fossils) to meet this growing energy demand.</em></p>
+</div>
+
+            
+        <hr>         <div class="related-posts">
+                <h5>Related Posts</h5>
+                
+              </div> 
+            </div>
+          </div>
+
+   <hr>  <div class="disqus">
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+
+    (function() {
+      
+      
+      if (window.location.hostname == "localhost")
+        return;
+
+      var disqus_shortname = '';
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</div> 
+        </div>
+      </div>
+    </div>
+
+    
+    <footer>
+  <div id="footer">
+    <div class="container">
+      <p class="text-muted">&copy; All rights reserved. Powered by <a href="https://gohugo.io/">Hugo</a> and
+      <a href="http://www.github.com/nurlansu/hugo-sustain/">sustain</a> with ♥</p>
+    </div>
+  </div>
+</footer>
+<div class="footer"></div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script src="/js/docs.min.js"></script>
+<script src="/js/main.js"></script>
+
+<script src="/js/ie10-viewport-bug-workaround.js"></script>
+
+
+    
+  </body>
+</html>
