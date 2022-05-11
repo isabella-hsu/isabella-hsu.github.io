@@ -13,7 +13,7 @@ The dataset I have chosen to analyze is compiled from two datasets from the Texa
 
 I found this data interesting because I'm quite fascinated by educational equity. As such, I wanted to determine what educational disparities exist between different types of districts. For instance, if performance in these different STAAR results can accurately classify the districts, this likely means there is some sort of disparity between the different types of districts. Because districts contain so many different schools, it is hard to predict how the clusters may appear. However, I expect that rural and independent town districts may show poorer performance in "all reading" and "all math" scores as these are typically more economically disadvantaged/smaller districts.
 
-To compile the two datsets into a single dataset, I first kept the variables I wanted to analyze in each of the datasets. I then replaced all blanks and .s (both which represented NA in the original dataset) with actual NA variables in the second dataset. I then removed all rows with NA in the second dataset. I then conducted a left join with the second dataset being the "left" dataset. This resulted in staarjoin.csv, which I have uploaded below.
+To compile the two datasets into a single dataset, I first kept the variables I wanted to analyze in each of the datasets. I then replaced all blanks and .s (both which represented NA in the original dataset) with actual NA variables in the second dataset. I then removed all rows with NA in the second dataset. I then conducted a left join with the second dataset being the "left" dataset. This resulted in staarjoin.csv, which I have uploaded below.
 
 If you are on a browser and want to view the specifics of the data cleaning process, please see this link: [Cleaning Process](file:///Users/isabellahsu/Downloads/College/Spring%202022/SDS%20322E/SDS-322-E-Project-2---Cleaning.html) 
 
@@ -321,7 +321,7 @@ Here we will set the folds:
 k = 10 
 
 # randomize
-set.seed(1028)
+set.seed(10)
 data <- staar[sample(nrow(staar)), ] 
 
 # creating the diff folds
@@ -342,11 +342,11 @@ for(i in 1:k){
   # training model
   fit <- glm(Charter ~ All.Math + All.Reading + Econ_Dis.Math + Econ_Dis.Reading + Female.Math
              + Female.Reading + Male.Math + Male.Reading + At_Risk.Math + At_Risk.Reading +
-               Special.Math + Special.Reading, data = staar, family = "binomial")
+               Special.Math + Special.Reading, data = train, family = "binomial")
   
   # putting model on test set
   df <- data.frame(
-    probability = (ifelse(predict(staar_glm, newdata = test, type = "response") < 0.5, 0, 1)),
+    probability = (ifelse(predict(fit, newdata = test, type = "response") < 0.5, 0, 1)),
     outcome = test$Charter)
   
   # ROC for test
@@ -365,5 +365,5 @@ We can then find the average performance for all the folds.
 mean(diags_k)
 ```
 
-*From this, we find that the AUC falls from 0.81 (with the logistic regression alone) to 0.55 (when cross-validated). Therefore, the performance is now considered "bad," which indicates that our model was likely overfit before.*
+*From this, we find that the AUC falls from 0.81 (with the logistic regression alone) to 0.52 (when cross-validated). Therefore, the performance is now considered "bad," which indicates that our model was likely overfit before.*
 
